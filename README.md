@@ -63,4 +63,4 @@ Fayda National ID ensures:
 
 ## 🚧 Status
 
-This project is in the planning stage and has not been initialized yet.
+This project is in the planning stage
