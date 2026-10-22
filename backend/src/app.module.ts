@@ -11,6 +11,7 @@ import { HealthModule } from './health/health.module.js';
 import { UsersModule } from './users/users.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { GeoModule } from './geo/geo.module.js';
+import { SeasonsModule } from './seasons/seasons.module.js';
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
 @Module({
@@ -24,6 +25,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     UsersModule,
     AuthModule,
     GeoModule,
+    SeasonsModule,
     ObserveModule.forRoot({
       appKey: 'YOUR_APP_KEY',
       appSecret: 'YOUR_APP_SECRET',
