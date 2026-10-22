@@ -82,6 +82,7 @@ Details: [`AUTH_DESIGN.md`](AUTH_DESIGN.md).
 | Notifications | SMS gateway (Ethio Telecom or licensed aggregator) |
 | Payments | Mobile money / bank gateway |
 | Ops | Docker, CI/CD, Prometheus, in-country hosting |
+<<<<<<< HEAD
 
 ---
 
