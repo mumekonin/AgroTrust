@@ -62,6 +62,11 @@ export class LocalCentersService {
     return toLocalCenterResponse(center);
   }
 
+  async idsInScope(principal: Principal): Promise<string[]> {
+    const docs = await this.centers.find(this.scopeFilter(principal)).select('_id').lean().exec();
+    return docs.map((doc) => String(doc._id));
+  }
+
   async create(principal: Principal, input: CreateCenterDto): Promise<LocalCenterResponse> {
     this.assertRegion(principal, input.geo.regionId);
     assertPoint(input.location.coordinates);
