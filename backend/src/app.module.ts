@@ -14,6 +14,7 @@ import { GeoModule } from './geo/geo.module.js';
 import { SeasonsModule } from './seasons/seasons.module.js';
 import { CatalogModule } from './catalog/catalog.module.js';
 import { FarmersModule } from './farmers/farmers.module.js';
+import { LocalCentersModule } from './local-centers/local-centers.module.js';
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
 @Module({
@@ -30,6 +31,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     SeasonsModule,
     CatalogModule,
     FarmersModule,
+    LocalCentersModule,
     ObserveModule.forRoot({
       appKey: 'YOUR_APP_KEY',
       appSecret: 'YOUR_APP_SECRET',
