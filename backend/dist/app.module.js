@@ -17,6 +17,8 @@ import { HealthModule } from './health/health.module.js';
 import { UsersModule } from './users/users.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { GeoModule } from './geo/geo.module.js';
+import { SeasonsModule } from './seasons/seasons.module.js';
+import { CatalogModule } from './catalog/catalog.module.js';
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 let AppModule = class AppModule {
 };
@@ -32,6 +34,8 @@ AppModule = __decorate([
             UsersModule,
             AuthModule,
             GeoModule,
+            SeasonsModule,
+            CatalogModule,
             ObserveModule.forRoot({
                 appKey: 'YOUR_APP_KEY',
                 appSecret: 'YOUR_APP_SECRET',
