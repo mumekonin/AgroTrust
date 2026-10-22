@@ -10,6 +10,17 @@ export const envSchema = z.object({
     .default('info'),
   THROTTLE_TTL_MS: z.coerce.number().int().positive().default(60_000),
   THROTTLE_LIMIT: z.coerce.number().int().positive().default(100),
+
+  // Auth (Part 3). Keys are base64-encoded PEM.
+  JWT_PRIVATE_KEY: z.string().min(1),
+  JWT_PUBLIC_KEY: z.string().min(1),
+  JWT_KEY_ID: z.string().min(1).default('k1'),
+  JWT_PREVIOUS_PUBLIC_KEY: z.string().optional(),
+  JWT_PREVIOUS_KEY_ID: z.string().optional(),
+  JWT_ISSUER: z.string().min(1).default('agrotrust-api'),
+  JWT_AUDIENCE: z.string().min(1).default('agrotrust-clients'),
+  AUTH_PEPPER: z.string().min(32),
+  ARGON2_MAX_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(4),
 });
 
 export type Env = z.infer<typeof envSchema>;
