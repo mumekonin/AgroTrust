@@ -53,6 +53,6 @@ import { TotpService } from './service/totp.service.js';
     { provide: APP_GUARD, useClass: ScopeGuard },
     { provide: APP_GUARD, useClass: StepUpGuard },
   ],
-  exports: [CredentialService, TokenService, SessionService],
+  exports: [CredentialService, TokenService, SessionService, AuthService, DeviceService],
 })
 export class AuthModule {}
