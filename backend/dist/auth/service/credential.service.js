@@ -230,6 +230,53 @@ let CredentialService = class CredentialService {
         }
         return false;
     }
+    async saveTotpSecret(userId, secretEnc, session) {
+        await this.model
+            .updateOne({ userId: new Types.ObjectId(userId), type: CredentialType.TOTP }, { $set: { secretEnc, algo: 'aes-256-gcm' }, $unset: { confirmedAt: '' } }, { upsert: true, session })
+            .exec();
+    }
+    async readTotpSecret(userId) {
+        const credential = await this.model
+            .findOne({ userId: new Types.ObjectId(userId), type: CredentialType.TOTP })
+            .select('+secretEnc')
+            .exec();
+        return credential?.secretEnc ?? null;
+    }
+    async confirmTotp(userId, session) {
+        await this.model
+            .updateOne({ userId: new Types.ObjectId(userId), type: CredentialType.TOTP }, { $set: { confirmedAt: new Date() } }, { session })
+            .exec();
+    }
+    async saveRecoveryCodes(userId, codeHashes, session) {
+        await this.model
+            .updateOne({ userId: new Types.ObjectId(userId), type: CredentialType.RECOVERY_CODES }, { $set: { codeHashes, usedCount: 0 } }, { upsert: true, session })
+            .exec();
+    }
+    async readRecoveryHashes(userId) {
+        const credential = await this.model
+            .findOne({ userId: new Types.ObjectId(userId), type: CredentialType.RECOVERY_CODES })
+            .select('+codeHashes')
+            .exec();
+        return credential?.codeHashes ?? [];
+    }
+    async consumeRecoveryHash(userId, hash) {
+        await this.model
+            .updateOne({ userId: new Types.ObjectId(userId), type: CredentialType.RECOVERY_CODES }, { $pull: { codeHashes: hash }, $inc: { usedCount: 1 } })
+            .exec();
+    }
+    async deleteMfa(userId, session) {
+        await this.model
+            .deleteMany({
+            userId: new Types.ObjectId(userId),
+            type: { $in: [CredentialType.TOTP, CredentialType.RECOVERY_CODES] },
+        }, { session })
+            .exec();
+    }
+    async clearMustChange(userId, type, session) {
+        await this.model
+            .updateOne({ userId: new Types.ObjectId(userId), type }, { $set: { mustChange: false } }, { session })
+            .exec();
+    }
 };
 CredentialService = __decorate([
     Injectable(),

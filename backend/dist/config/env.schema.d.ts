@@ -27,6 +27,7 @@ export declare const envSchema: z.ZodObject<{
     JWT_ISSUER: z.ZodDefault<z.ZodString>;
     JWT_AUDIENCE: z.ZodDefault<z.ZodString>;
     AUTH_PEPPER: z.ZodString;
+    TOTP_ENCRYPTION_KEY: z.ZodString;
     ARGON2_MAX_CONCURRENCY: z.ZodDefault<z.ZodCoercedNumber<unknown>>;
 }, z.core.$strip>;
 export type Env = z.infer<typeof envSchema>;

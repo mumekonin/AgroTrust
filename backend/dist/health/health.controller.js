@@ -9,6 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 import { Controller, Get } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
+import { Public } from '../common/guards/auth.decorator.js';
 import { HealthCheck, HealthCheckService, MongooseHealthIndicator } from '@nestjs/terminus';
 let HealthController = class HealthController {
     health;
@@ -40,6 +41,7 @@ __decorate([
 ], HealthController.prototype, "ready", null);
 HealthController = __decorate([
     SkipThrottle(),
+    Public(),
     Controller('health'),
     __metadata("design:paramtypes", [HealthCheckService,
         MongooseHealthIndicator])

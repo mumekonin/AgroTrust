@@ -10,3 +10,4 @@ console.log(`JWT_PRIVATE_KEY=${b64(privatePem)}`);
 console.log(`JWT_PUBLIC_KEY=${b64(publicPem)}`);
 console.log('JWT_KEY_ID=k1');
 console.log(`AUTH_PEPPER=${randomBytes(32).toString('base64')}`);
+console.log(`TOTP_ENCRYPTION_KEY=${randomBytes(32).toString('base64')}`);

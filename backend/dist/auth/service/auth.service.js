@@ -11,7 +11,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var AuthService_1;
-import { createHmac } from 'node:crypto';
+import { createHmac, randomBytes } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectConnection } from '@nestjs/mongoose';
@@ -23,10 +23,14 @@ import { UserStatus } from '../../users/schema/user.schema.js';
 import { UsersService } from '../../users/service/users.service.js';
 import { generateCsrfToken } from '../auth.cookies.js';
 import { CredentialType } from '../schema/user-credential.schema.js';
+import { OtpPurpose } from '../schema/otp-challenge.schema.js';
 import { CredentialService } from './credential.service.js';
+import { DeviceService } from './device.service.js';
 import { failureIsLockout, LockoutService, shouldLockAccount, } from './lockout.service.js';
+import { OtpService } from './otp.service.js';
 import { SessionService } from './session.service.js';
-import { TokenService } from './token.service.js';
+import { TokenService, primaryRole } from './token.service.js';
+import { TotpService } from './totp.service.js';
 const PIN_ERROR = 'Phone or PIN is incorrect';
 const PASSWORD_ERROR = 'Identifier or password is incorrect';
 const LOCKOUT_MESSAGE = 'Too many attempts. Try again later.';
@@ -36,15 +40,21 @@ let AuthService = AuthService_1 = class AuthService {
     sessions;
     tokens;
     lockout;
+    devices;
+    otp;
+    totp;
     connection;
     logger = new Logger(AuthService_1.name);
     pepper;
-    constructor(users, credentials, sessions, tokens, lockout, connection, config) {
+    constructor(users, credentials, sessions, tokens, lockout, devices, otp, totp, connection, config) {
         this.users = users;
         this.credentials = credentials;
         this.sessions = sessions;
         this.tokens = tokens;
         this.lockout = lockout;
+        this.devices = devices;
+        this.otp = otp;
+        this.totp = totp;
         this.connection = connection;
         this.pepper = config.get('AUTH_PEPPER', { infer: true });
     }
@@ -87,40 +97,48 @@ let AuthService = AuthService_1 = class AuthService {
             }
             throw new AppException(ErrorCode.UNAUTHENTICATED, parsed.mode === 'pin' ? PIN_ERROR : PASSWORD_ERROR, 401);
         }
-        if (user.status !== UserStatus.ACTIVE) {
+        const pendingStaff = parsed.mode === 'password' && user.status === UserStatus.PENDING_ACTIVATION;
+        if (user.status !== UserStatus.ACTIVE && !pendingStaff) {
             throw new AppException(ErrorCode.UNAUTHENTICATED, parsed.mode === 'pin' ? PIN_ERROR : PASSWORD_ERROR, 401);
         }
         if (parsed.mode === 'password') {
-            const mfa = {
+            const challenge = await this.otp.issue({
+                userId: user.id,
+                phone: user.phone,
+                purpose: OtpPurpose.LOGIN_MFA,
+                ttlMs: 5 * 60_000,
+            });
+            const mfaMethods = ['totp'];
+            if (user.roles.includes(Role.LOCAL_ADMIN) && user.mfa?.smsFallbackAllowed) {
+                mfaMethods.push('sms');
+            }
+            return {
                 mfaRequired: true,
-                mfaMethods: ['totp'],
+                mfaMethods,
+                challengeId: challenge.id,
+                totpEnrollRequired: !user.mfa?.totpEnabled,
+                passwordChangeRequired: await this.credentials.mustChange(user.id, CredentialType.PASSWORD),
             };
-            return mfa;
+        }
+        if (!(await this.devices.isTrusted(user.id, parsed.deviceId))) {
+            const challenge = await this.otp.issue({
+                userId: user.id,
+                phone: user.phone,
+                purpose: OtpPurpose.LOGIN_NEW_DEVICE,
+            });
+            return { otpRequired: true, challengeId: challenge.id };
         }
         await this.lockout.recordSuccess({ identifierHash, ip, userId: user.id });
-        const issued = await this.sessions.create({
+        return this.openSession({
             userId: user.id,
             roles: user.roles,
+            roleVersion: user.roleVersion,
             deviceId: parsed.deviceId,
             deviceLabel: input.deviceLabel?.trim(),
             userAgent: input.userAgent?.slice(0, 256),
             ip,
             authMethod: 'pin',
         });
-        const access = await this.tokens.issueAccessToken({
-            userId: user.id,
-            sid: issued.sid,
-            roleVersion: user.roleVersion,
-            role: issued.role,
-        });
-        await this.users.markLogin(user.id);
-        return {
-            accessToken: access.accessToken,
-            expiresIn: access.expiresIn,
-            refreshToken: issued.refreshToken,
-            refreshExpiresAt: issued.refreshExpiresAt,
-            csrfToken: generateCsrfToken(),
-        };
     }
     async refresh(rawToken) {
         const rotated = await this.sessions.rotate(rawToken);
@@ -143,13 +161,265 @@ let AuthService = AuthService_1 = class AuthService {
             csrfToken: generateCsrfToken(),
         };
     }
-    async logout(accessToken) {
-        const claims = await this.tokens.verifyAccessToken(accessToken);
-        await this.sessions.revokeSession(claims.sid, 'LOGOUT');
+    async logout(sid) {
+        await this.sessions.revokeSession(sid, 'LOGOUT');
     }
-    async logoutAll(accessToken) {
-        const claims = await this.tokens.verifyAccessToken(accessToken);
-        await this.sessions.revokeAllForUser(claims.sub, 'LOGOUT_ALL');
+    async logoutAll(userId) {
+        await this.sessions.revokeAllForUser(userId, 'LOGOUT_ALL');
+    }
+    async verifyLoginOtp(input) {
+        const challenge = await this.otp.verify(input.challengeId, input.code, OtpPurpose.LOGIN_NEW_DEVICE);
+        if (!challenge.userId) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED, 'Invalid or expired code', 401);
+        }
+        const user = await this.users.getByIdOrFail(challenge.userId);
+        if (user.status !== UserStatus.ACTIVE) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED, 'Invalid or expired code', 401);
+        }
+        await this.devices.trust(user.id, input.deviceId, input.deviceLabel);
+        return this.openSession({
+            userId: user.id,
+            roles: user.roles,
+            roleVersion: user.roleVersion,
+            deviceId: input.deviceId,
+            deviceLabel: input.deviceLabel,
+            userAgent: input.userAgent?.slice(0, 256),
+            ip: input.ip,
+            authMethod: 'pin+otp',
+        });
+    }
+    async verifyLoginMfa(input) {
+        const pending = await this.otp.peek(input.challengeId, OtpPurpose.LOGIN_MFA);
+        if (!pending.userId) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED, 'Invalid or expired code', 401);
+        }
+        const user = await this.users.getByIdOrFail(pending.userId);
+        const method = input.method ?? 'totp';
+        if (method === 'sms') {
+            if (!user.roles.includes(Role.LOCAL_ADMIN) || !user.mfa?.smsFallbackAllowed) {
+                throw new AppException(ErrorCode.FORBIDDEN, 'SMS sign-in is not allowed', 403);
+            }
+            if (!input.code) {
+                const sent = await this.otp.issue({
+                    userId: user.id,
+                    phone: user.phone,
+                    purpose: OtpPurpose.SMS_FALLBACK,
+                    payloadHash: input.challengeId,
+                });
+                return { otpRequired: true, challengeId: sent.id };
+            }
+            await this.otp.verifyLatest({
+                userId: user.id,
+                purpose: OtpPurpose.SMS_FALLBACK,
+                code: input.code,
+            });
+        }
+        else if (method === 'recovery') {
+            if (!input.code) {
+                throw new AppException(ErrorCode.VALIDATION_FAILED, 'A recovery code is required');
+            }
+            const used = await this.totp.useRecoveryCode(user.id, input.code);
+            if (!used)
+                throw new AppException(ErrorCode.UNAUTHENTICATED, 'Invalid or expired code', 401);
+        }
+        else {
+            if (!input.code) {
+                throw new AppException(ErrorCode.VALIDATION_FAILED, 'Authenticator code is required');
+            }
+            const ok = await this.totp.verify(user.id, input.code);
+            if (!ok)
+                throw new AppException(ErrorCode.UNAUTHENTICATED, 'Invalid or expired code', 401);
+        }
+        if (await this.credentials.mustChange(user.id, CredentialType.PASSWORD)) {
+            if (!input.newPassword) {
+                throw new AppException(ErrorCode.VALIDATION_FAILED, 'A new password is required');
+            }
+            this.credentials.assertValidPassword(input.newPassword, primaryRole(user.roles), {
+                fullName: user.fullName,
+                phone: user.phone,
+                email: user.email,
+            });
+            await this.credentials.setSecret(user.id, CredentialType.PASSWORD, input.newPassword);
+            await this.credentials.clearMustChange(user.id, CredentialType.PASSWORD);
+        }
+        await this.otp.consumeId(input.challengeId);
+        if (user.status === UserStatus.PENDING_ACTIVATION) {
+            await this.users.activate(user.id);
+        }
+        return this.openSession({
+            userId: user.id,
+            roles: user.roles,
+            roleVersion: user.roleVersion,
+            deviceId: input.deviceId,
+            deviceLabel: input.deviceLabel,
+            userAgent: input.userAgent?.slice(0, 256),
+            ip: input.ip,
+            authMethod: method === 'sms' ? 'password+sms' : 'password+totp',
+        });
+    }
+    async stepUp(principal, input) {
+        const user = await this.users.getByIdOrFail(principal.userId);
+        const farmer = user.roles.every((role) => role === Role.FARMER);
+        if (farmer) {
+            if (!input.pin)
+                throw new AppException(ErrorCode.VALIDATION_FAILED, 'PIN is required');
+            const ok = await this.credentials.verifySecret(user.id, CredentialType.PIN, input.pin);
+            if (!ok)
+                throw new AppException(ErrorCode.UNAUTHENTICATED, PIN_ERROR, 401);
+            if (!input.code) {
+                const sent = await this.otp.issue({
+                    userId: user.id,
+                    phone: user.phone,
+                    purpose: OtpPurpose.STEP_UP,
+                });
+                return { otpRequired: true, challengeId: sent.id };
+            }
+            await this.otp.verifyLatest({ userId: user.id, purpose: OtpPurpose.STEP_UP, code: input.code });
+        }
+        else {
+            if (!input.password || !input.code) {
+                throw new AppException(ErrorCode.VALIDATION_FAILED, 'Password and authenticator code are required');
+            }
+            const ok = await this.credentials.verifySecret(user.id, CredentialType.PASSWORD, input.password);
+            const totpOk = ok && (await this.totp.verify(user.id, input.code));
+            if (!totpOk)
+                throw new AppException(ErrorCode.UNAUTHENTICATED, PASSWORD_ERROR, 401);
+        }
+        const until = new Date(Date.now() + 5 * 60_000);
+        await this.sessions.setStepUp(principal.sid, until);
+    }
+    async openSession(input) {
+        const issued = await this.sessions.create({
+            userId: input.userId,
+            roles: input.roles,
+            deviceId: input.deviceId,
+            deviceLabel: input.deviceLabel,
+            userAgent: input.userAgent,
+            ip: input.ip,
+            authMethod: input.authMethod,
+        });
+        const access = await this.tokens.issueAccessToken({
+            userId: input.userId,
+            sid: issued.sid,
+            roleVersion: input.roleVersion,
+            role: issued.role,
+        });
+        await this.users.markLogin(input.userId);
+        return {
+            accessToken: access.accessToken,
+            expiresIn: access.expiresIn,
+            refreshToken: issued.refreshToken,
+            refreshExpiresAt: issued.refreshExpiresAt,
+            csrfToken: generateCsrfToken(),
+        };
+    }
+    async requestPinReset(phone) {
+        const user = await this.users.findByPhone(phone);
+        if (!user || !user.roles.every((role) => role === Role.FARMER) || !user.phone)
+            return;
+        await this.otp.issue({ userId: user.id, phone: user.phone, purpose: OtpPurpose.PIN_RESET });
+    }
+    async confirmPinReset(phone, code, pin) {
+        const normalized = normalizeEthiopianPhone(phone);
+        const user = normalized ? await this.users.findByPhone(normalized) : null;
+        if (!user)
+            throw new AppException(ErrorCode.UNAUTHENTICATED, 'Invalid or expired code', 401);
+        await this.otp.verifyLatest({ phone: user.phone, purpose: OtpPurpose.PIN_RESET, code });
+        this.credentials.assertValidPin(pin, { phone: user.phone });
+        await this.credentials.setSecret(user.id, CredentialType.PIN, pin);
+        await this.sessions.revokeAllForUser(user.id, 'PIN_RESET');
+    }
+    async requestPasswordReset(email) {
+        const user = await this.users.findByEmail(email);
+        if (!user || user.roles.every((role) => role === Role.FARMER))
+            return;
+        const token = randomBytes(32).toString('base64url');
+        await this.otp.issue({
+            userId: user.id,
+            purpose: OtpPurpose.PASSWORD_RESET,
+            secret: token,
+            ttlMs: 30 * 60_000,
+        });
+    }
+    async confirmPasswordReset(token, code, password) {
+        const challenge = await this.otp.verifyToken(OtpPurpose.PASSWORD_RESET, token);
+        if (!challenge.userId) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED, 'Invalid or expired code', 401);
+        }
+        const user = await this.users.getByIdOrFail(challenge.userId);
+        const totpOk = await this.totp.verify(user.id, code);
+        const recoveryOk = totpOk ? false : await this.totp.useRecoveryCode(user.id, code);
+        if (!totpOk && !recoveryOk) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED, 'Invalid or expired code', 401);
+        }
+        this.credentials.assertValidPassword(password, primaryRole(user.roles), {
+            fullName: user.fullName,
+            phone: user.phone,
+            email: user.email,
+        });
+        await this.credentials.setSecret(user.id, CredentialType.PASSWORD, password);
+        await this.sessions.revokeAllForUser(user.id, 'PASSWORD_RESET');
+    }
+    async changePin(userId, pin) {
+        const user = await this.users.getByIdOrFail(userId);
+        this.credentials.assertValidPin(pin, { phone: user.phone });
+        await this.credentials.setSecret(user.id, CredentialType.PIN, pin);
+    }
+    async changePassword(userId, password) {
+        const user = await this.users.getByIdOrFail(userId);
+        this.credentials.assertValidPassword(password, primaryRole(user.roles), {
+            fullName: user.fullName,
+            phone: user.phone,
+            email: user.email,
+        });
+        if (await this.credentials.isPasswordReused(user.id, password)) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED, 'Choose a password you have not used before');
+        }
+        await this.credentials.setSecret(user.id, CredentialType.PASSWORD, password);
+        await this.credentials.clearMustChange(user.id, CredentialType.PASSWORD);
+    }
+    async enrollTotp(input) {
+        const userId = input.userId ?? (await this.userIdFromChallenge(input.challengeId));
+        const user = await this.users.getByIdOrFail(userId);
+        return this.totp.enroll(user.id, user.email ?? user.phone ?? user.id);
+    }
+    async confirmTotp(input) {
+        const userId = input.userId ?? (await this.userIdFromChallenge(input.challengeId));
+        const recoveryCodes = await this.totp.confirm(userId, input.code);
+        await this.users.setTotpEnabled(userId, true);
+        const user = await this.users.getByIdOrFail(userId);
+        if (user.status === UserStatus.PENDING_ACTIVATION)
+            await this.users.activate(userId);
+        if (input.challengeId)
+            await this.otp.consumeId(input.challengeId);
+        const session = await this.openSession({
+            userId,
+            roles: user.roles,
+            roleVersion: user.roleVersion,
+            deviceId: input.deviceId,
+            deviceLabel: input.deviceLabel,
+            userAgent: input.userAgent?.slice(0, 256),
+            ip: input.ip,
+            authMethod: 'password+totp',
+        });
+        return { ...session, recoveryCodes };
+    }
+    async userIdFromChallenge(challengeId) {
+        if (!challengeId) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED, 'Invalid or expired token', 401);
+        }
+        for (const purpose of [OtpPurpose.MFA_ENROLL, OtpPurpose.LOGIN_MFA]) {
+            try {
+                const pending = await this.otp.peek(challengeId, purpose);
+                if (pending.userId)
+                    return pending.userId;
+            }
+            catch (error) {
+                if (!(error instanceof AppException))
+                    throw error;
+            }
+        }
+        throw new AppException(ErrorCode.UNAUTHENTICATED, 'Invalid or expired code', 401);
     }
     classify(input) {
         const phone = input.phone?.trim();
@@ -219,12 +489,15 @@ let AuthService = AuthService_1 = class AuthService {
 };
 AuthService = AuthService_1 = __decorate([
     Injectable(),
-    __param(5, InjectConnection()),
+    __param(8, InjectConnection()),
     __metadata("design:paramtypes", [UsersService,
         CredentialService,
         SessionService,
         TokenService,
-        LockoutService, Function, ConfigService])
+        LockoutService,
+        DeviceService,
+        OtpService,
+        TotpService, Function, ConfigService])
 ], AuthService);
 export { AuthService };
 //# sourceMappingURL=auth.service.js.map

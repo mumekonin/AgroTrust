@@ -40,6 +40,7 @@ describe('AuthService', () => {
   const credentials = {
     verifySecret: vi.fn(),
     burnVerification: vi.fn(),
+    mustChange: vi.fn(),
   };
   const sessions = {
     create: vi.fn(),
@@ -56,6 +57,9 @@ describe('AuthService', () => {
     recordFailure: vi.fn(),
     recordSuccess: vi.fn(),
   };
+  const devices = { isTrusted: vi.fn(), trust: vi.fn() };
+  const otp = { issue: vi.fn() };
+  const totp = {};
   const connection = {
     startSession: vi.fn(),
   };
@@ -67,6 +71,9 @@ describe('AuthService', () => {
     sessions as never,
     tokens as never,
     lockout as never,
+    devices as never,
+    otp as never,
+    totp as never,
     connection as never,
     config as never,
   );
@@ -79,6 +86,9 @@ describe('AuthService', () => {
     });
     credentials.verifySecret.mockResolvedValue(true);
     credentials.burnVerification.mockResolvedValue(undefined);
+    credentials.mustChange.mockResolvedValue(false);
+    devices.isTrusted.mockResolvedValue(true);
+    otp.issue.mockResolvedValue({ id: 'ch-1', code: '000000' });
     lockout.recordFailure.mockResolvedValue(1);
     lockout.recordSuccess.mockResolvedValue(undefined);
     users.markLogin.mockResolvedValue(undefined);
@@ -223,7 +233,13 @@ describe('AuthService', () => {
       }),
     );
 
-    expect(result).toEqual({ mfaRequired: true, mfaMethods: ['totp'] });
+    expect(result).toEqual({
+      mfaRequired: true,
+      mfaMethods: ['totp'],
+      challengeId: 'ch-1',
+      totpEnrollRequired: true,
+      passwordChangeRequired: false,
+    });
     expect(credentials.verifySecret).toHaveBeenCalledWith(
       staff.id,
       CredentialType.PASSWORD,
@@ -309,19 +325,21 @@ describe('AuthService', () => {
     expect(tokens.issueAccessToken).not.toHaveBeenCalled();
   });
 
-  it('revokes the current session on logout and every session on logout-all', async () => {
-    tokens.verifyAccessToken.mockResolvedValue({
-      sid: 'sid-1',
-      sub: farmer.id,
-    });
+  it('asks for an OTP when the farmer device is not trusted', async () => {
+    users.findByPhone.mockResolvedValue(farmer);
+    devices.isTrusted.mockResolvedValue(false);
 
-    await service.logout('access-1');
-    await service.logoutAll('access-1');
+    const result = await service.login(loginInput());
+
+    expect(result).toEqual({ otpRequired: true, challengeId: 'ch-1' });
+    expect(sessions.create).not.toHaveBeenCalled();
+  });
+
+  it('revokes the current session on logout and every session on logout-all', async () => {
+    await service.logout('sid-1');
+    await service.logoutAll(farmer.id);
 
     expect(sessions.revokeSession).toHaveBeenCalledWith('sid-1', 'LOGOUT');
-    expect(sessions.revokeAllForUser).toHaveBeenCalledWith(
-      farmer.id,
-      'LOGOUT_ALL',
-    );
+    expect(sessions.revokeAllForUser).toHaveBeenCalledWith(farmer.id, 'LOGOUT_ALL');
   });
 });

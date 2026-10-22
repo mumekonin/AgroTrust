@@ -17,6 +17,7 @@ export const envSchema = z.object({
     JWT_ISSUER: z.string().min(1).default('agrotrust-api'),
     JWT_AUDIENCE: z.string().min(1).default('agrotrust-clients'),
     AUTH_PEPPER: z.string().min(32),
+    TOTP_ENCRYPTION_KEY: z.string().min(32),
     ARGON2_MAX_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(4),
 });
 export function validateEnv(config) {

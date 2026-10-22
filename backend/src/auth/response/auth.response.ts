@@ -8,7 +8,15 @@ export interface AccessSessionResponse {
 
 export interface MfaRequiredResponse {
   mfaRequired: true;
-  mfaMethods: ['totp'];
+  mfaMethods: Array<'totp' | 'sms'>;
+  challengeId: string;
+  totpEnrollRequired?: boolean;
+  passwordChangeRequired?: boolean;
+}
+
+export interface OtpRequiredResponse {
+  otpRequired: true;
+  challengeId: string;
 }
 
 export function toAccessSessionResponse(issued: {

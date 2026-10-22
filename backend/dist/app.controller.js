@@ -8,6 +8,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 import { Controller, Get } from '@nestjs/common';
+import { Public } from './common/guards/auth.decorator.js';
 import { AppService } from './app.service.js';
 let AppController = class AppController {
     appService;
@@ -25,6 +26,7 @@ __decorate([
     __metadata("design:returntype", String)
 ], AppController.prototype, "getHello", null);
 AppController = __decorate([
+    Public(),
     Controller(),
     __metadata("design:paramtypes", [AppService])
 ], AppController);

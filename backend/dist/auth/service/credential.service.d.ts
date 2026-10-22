@@ -30,4 +30,12 @@ export declare class CredentialService {
     burnVerification(secret: string): Promise<void>;
     mustChange(userId: string, type: CredentialType): Promise<boolean>;
     isPasswordReused(userId: string, password: string): Promise<boolean>;
+    saveTotpSecret(userId: string, secretEnc: string, session?: ClientSession): Promise<void>;
+    readTotpSecret(userId: string): Promise<string | null>;
+    confirmTotp(userId: string, session?: ClientSession): Promise<void>;
+    saveRecoveryCodes(userId: string, codeHashes: string[], session?: ClientSession): Promise<void>;
+    readRecoveryHashes(userId: string): Promise<string[]>;
+    consumeRecoveryHash(userId: string, hash: string): Promise<void>;
+    deleteMfa(userId: string, session?: ClientSession): Promise<void>;
+    clearMustChange(userId: string, type: CredentialType, session?: ClientSession): Promise<void>;
 }

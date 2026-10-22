@@ -33,7 +33,7 @@ describe('AuthController', () => {
     logout: vi.fn(),
     logoutAll: vi.fn(),
   };
-  const controller = new AuthController(auth as never);
+  const controller = new AuthController(auth as never, {} as never);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -132,21 +132,14 @@ describe('AuthController', () => {
     const res = response();
 
     await controller.logout(
-      request({ headers: { authorization: 'Bearer access-1' } }),
+      { sid: 'sid-1', userId: 'user-1' } as never,
       res,
     );
 
-    expect(auth.logout).toHaveBeenCalledWith('access-1');
+    expect(auth.logout).toHaveBeenCalledWith('sid-1');
     expect(res.clearCookie).toHaveBeenCalledWith(
       REFRESH_COOKIE,
       expect.objectContaining({ httpOnly: true }),
     );
-  });
-
-  it('rejects logout without a bearer token', async () => {
-    await expect(
-      controller.logout(request(), response()),
-    ).rejects.toBeInstanceOf(AppException);
-    expect(auth.logout).not.toHaveBeenCalled();
   });
 });

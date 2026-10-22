@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto';
+import { createHmac, randomBytes } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectConnection } from '@nestjs/mongoose';
@@ -11,16 +11,20 @@ import type { Env } from '../../config/env.schema.js';
 import { UserStatus } from '../../users/schema/user.schema.js';
 import { UsersService } from '../../users/service/users.service.js';
 import { generateCsrfToken } from '../auth.cookies.js';
-import type { MfaRequiredResponse } from '../response/auth.response.js';
+import type { MfaRequiredResponse, OtpRequiredResponse } from '../response/auth.response.js';
 import { CredentialType } from '../schema/user-credential.schema.js';
+import { OtpPurpose } from '../schema/otp-challenge.schema.js';
 import { CredentialService } from './credential.service.js';
+import { DeviceService } from './device.service.js';
 import {
   failureIsLockout,
   LockoutService,
   shouldLockAccount,
 } from './lockout.service.js';
+import { OtpService } from './otp.service.js';
 import { SessionService } from './session.service.js';
-import { TokenService } from './token.service.js';
+import { TokenService, primaryRole } from './token.service.js';
+import { TotpService } from './totp.service.js';
 
 const PIN_ERROR = 'Phone or PIN is incorrect';
 const PASSWORD_ERROR = 'Identifier or password is incorrect';
@@ -45,7 +49,7 @@ export interface IssuedLogin {
   csrfToken: string;
 }
 
-export type LoginResult = IssuedLogin | MfaRequiredResponse;
+export type LoginResult = IssuedLogin | MfaRequiredResponse | OtpRequiredResponse;
 
 type LoginMode = 'pin' | 'password';
 
@@ -60,6 +64,9 @@ export class AuthService {
     private readonly sessions: SessionService,
     private readonly tokens: TokenService,
     private readonly lockout: LockoutService,
+    private readonly devices: DeviceService,
+    private readonly otp: OtpService,
+    private readonly totp: TotpService,
     @InjectConnection() private readonly connection: Connection,
     config: ConfigService<Env, true>,
   ) {
@@ -127,7 +134,9 @@ export class AuthService {
       );
     }
 
-    if (user.status !== UserStatus.ACTIVE) {
+    const pendingStaff =
+      parsed.mode === 'password' && user.status === UserStatus.PENDING_ACTIVATION;
+    if (user.status !== UserStatus.ACTIVE && !pendingStaff) {
       throw new AppException(
         ErrorCode.UNAUTHENTICATED,
         parsed.mode === 'pin' ? PIN_ERROR : PASSWORD_ERROR,
@@ -135,41 +144,49 @@ export class AuthService {
       );
     }
 
-    // Staff never get a session from the password alone (§3.5.3). MFA is the next module.
     if (parsed.mode === 'password') {
-      const mfa: MfaRequiredResponse = {
+      const challenge = await this.otp.issue({
+        userId: user.id,
+        phone: user.phone,
+        purpose: OtpPurpose.LOGIN_MFA,
+        ttlMs: 5 * 60_000,
+      });
+      const mfaMethods: Array<'totp' | 'sms'> = ['totp'];
+      if (user.roles.includes(Role.LOCAL_ADMIN) && user.mfa?.smsFallbackAllowed) {
+        mfaMethods.push('sms');
+      }
+      return {
         mfaRequired: true,
-        mfaMethods: ['totp'],
+        mfaMethods,
+        challengeId: challenge.id,
+        totpEnrollRequired: !user.mfa?.totpEnabled,
+        passwordChangeRequired: await this.credentials.mustChange(
+          user.id,
+          CredentialType.PASSWORD,
+        ),
       };
-      return mfa;
     }
 
-    // Trusted-device success path (§3.5.2). New-device OTP is the next module.
+    if (!(await this.devices.isTrusted(user.id, parsed.deviceId))) {
+      const challenge = await this.otp.issue({
+        userId: user.id,
+        phone: user.phone,
+        purpose: OtpPurpose.LOGIN_NEW_DEVICE,
+      });
+      return { otpRequired: true, challengeId: challenge.id };
+    }
+
     await this.lockout.recordSuccess({ identifierHash, ip, userId: user.id });
-    const issued = await this.sessions.create({
+    return this.openSession({
       userId: user.id,
       roles: user.roles,
+      roleVersion: user.roleVersion,
       deviceId: parsed.deviceId,
       deviceLabel: input.deviceLabel?.trim(),
       userAgent: input.userAgent?.slice(0, 256),
       ip,
       authMethod: 'pin',
     });
-    const access = await this.tokens.issueAccessToken({
-      userId: user.id,
-      sid: issued.sid,
-      roleVersion: user.roleVersion,
-      role: issued.role,
-    });
-    await this.users.markLogin(user.id);
-
-    return {
-      accessToken: access.accessToken,
-      expiresIn: access.expiresIn,
-      refreshToken: issued.refreshToken,
-      refreshExpiresAt: issued.refreshExpiresAt,
-      csrfToken: generateCsrfToken(),
-    };
   }
 
   /** §3.5.6. The caller resolves the cookie or body token and checks CSRF first. */
@@ -200,14 +217,306 @@ export class AuthService {
     };
   }
 
-  async logout(accessToken: string): Promise<void> {
-    const claims = await this.tokens.verifyAccessToken(accessToken);
-    await this.sessions.revokeSession(claims.sid, 'LOGOUT');
+  async logout(sid: string): Promise<void> {
+    await this.sessions.revokeSession(sid, 'LOGOUT');
   }
 
-  async logoutAll(accessToken: string): Promise<void> {
-    const claims = await this.tokens.verifyAccessToken(accessToken);
-    await this.sessions.revokeAllForUser(claims.sub, 'LOGOUT_ALL');
+  async logoutAll(userId: string): Promise<void> {
+    await this.sessions.revokeAllForUser(userId, 'LOGOUT_ALL');
+  }
+
+  async verifyLoginOtp(input: {
+    challengeId: string;
+    code: string;
+    deviceId: string;
+    deviceLabel?: string;
+    ip: string;
+    userAgent?: string;
+  }): Promise<IssuedLogin> {
+    const challenge = await this.otp.verify(input.challengeId, input.code, OtpPurpose.LOGIN_NEW_DEVICE);
+    if (!challenge.userId) {
+      throw new AppException(ErrorCode.UNAUTHENTICATED, 'Invalid or expired code', 401);
+    }
+    const user = await this.users.getByIdOrFail(challenge.userId);
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new AppException(ErrorCode.UNAUTHENTICATED, 'Invalid or expired code', 401);
+    }
+    await this.devices.trust(user.id, input.deviceId, input.deviceLabel);
+    return this.openSession({
+      userId: user.id,
+      roles: user.roles,
+      roleVersion: user.roleVersion,
+      deviceId: input.deviceId,
+      deviceLabel: input.deviceLabel,
+      userAgent: input.userAgent?.slice(0, 256),
+      ip: input.ip,
+      authMethod: 'pin+otp',
+    });
+  }
+
+  async verifyLoginMfa(input: {
+    challengeId: string;
+    code?: string;
+    method?: 'totp' | 'sms' | 'recovery';
+    newPassword?: string;
+    deviceId: string;
+    deviceLabel?: string;
+    ip: string;
+    userAgent?: string;
+  }): Promise<IssuedLogin | OtpRequiredResponse> {
+    const pending = await this.otp.peek(input.challengeId, OtpPurpose.LOGIN_MFA);
+    if (!pending.userId) {
+      throw new AppException(ErrorCode.UNAUTHENTICATED, 'Invalid or expired code', 401);
+    }
+    const user = await this.users.getByIdOrFail(pending.userId);
+    const method = input.method ?? 'totp';
+
+    if (method === 'sms') {
+      if (!user.roles.includes(Role.LOCAL_ADMIN) || !user.mfa?.smsFallbackAllowed) {
+        throw new AppException(ErrorCode.FORBIDDEN, 'SMS sign-in is not allowed', 403);
+      }
+      if (!input.code) {
+        const sent = await this.otp.issue({
+          userId: user.id,
+          phone: user.phone,
+          purpose: OtpPurpose.SMS_FALLBACK,
+          payloadHash: input.challengeId,
+        });
+        return { otpRequired: true, challengeId: sent.id };
+      }
+      await this.otp.verifyLatest({
+        userId: user.id,
+        purpose: OtpPurpose.SMS_FALLBACK,
+        code: input.code,
+      });
+    } else if (method === 'recovery') {
+      if (!input.code) {
+        throw new AppException(ErrorCode.VALIDATION_FAILED, 'A recovery code is required');
+      }
+      const used = await this.totp.useRecoveryCode(user.id, input.code);
+      if (!used) throw new AppException(ErrorCode.UNAUTHENTICATED, 'Invalid or expired code', 401);
+    } else {
+      if (!input.code) {
+        throw new AppException(ErrorCode.VALIDATION_FAILED, 'Authenticator code is required');
+      }
+      const ok = await this.totp.verify(user.id, input.code);
+      if (!ok) throw new AppException(ErrorCode.UNAUTHENTICATED, 'Invalid or expired code', 401);
+    }
+
+    if (await this.credentials.mustChange(user.id, CredentialType.PASSWORD)) {
+      if (!input.newPassword) {
+        throw new AppException(ErrorCode.VALIDATION_FAILED, 'A new password is required');
+      }
+      this.credentials.assertValidPassword(input.newPassword, primaryRole(user.roles), {
+        fullName: user.fullName,
+        phone: user.phone,
+        email: user.email,
+      });
+      await this.credentials.setSecret(user.id, CredentialType.PASSWORD, input.newPassword);
+      await this.credentials.clearMustChange(user.id, CredentialType.PASSWORD);
+    }
+
+    await this.otp.consumeId(input.challengeId);
+    if (user.status === UserStatus.PENDING_ACTIVATION) {
+      await this.users.activate(user.id);
+    }
+    return this.openSession({
+      userId: user.id,
+      roles: user.roles,
+      roleVersion: user.roleVersion,
+      deviceId: input.deviceId,
+      deviceLabel: input.deviceLabel,
+      userAgent: input.userAgent?.slice(0, 256),
+      ip: input.ip,
+      authMethod: method === 'sms' ? 'password+sms' : 'password+totp',
+    });
+  }
+
+  async stepUp(principal: { userId: string; sid: string; roles: Role[]; ip: string }, input: {
+    pin?: string;
+    password?: string;
+    code?: string;
+  }): Promise<void | OtpRequiredResponse> {
+    const user = await this.users.getByIdOrFail(principal.userId);
+    const farmer = user.roles.every((role) => role === Role.FARMER);
+    if (farmer) {
+      if (!input.pin) throw new AppException(ErrorCode.VALIDATION_FAILED, 'PIN is required');
+      const ok = await this.credentials.verifySecret(user.id, CredentialType.PIN, input.pin);
+      if (!ok) throw new AppException(ErrorCode.UNAUTHENTICATED, PIN_ERROR, 401);
+      if (!input.code) {
+        const sent = await this.otp.issue({
+          userId: user.id,
+          phone: user.phone,
+          purpose: OtpPurpose.STEP_UP,
+        });
+        return { otpRequired: true, challengeId: sent.id };
+      }
+      await this.otp.verifyLatest({ userId: user.id, purpose: OtpPurpose.STEP_UP, code: input.code });
+    } else {
+      if (!input.password || !input.code) {
+        throw new AppException(ErrorCode.VALIDATION_FAILED, 'Password and authenticator code are required');
+      }
+      const ok = await this.credentials.verifySecret(user.id, CredentialType.PASSWORD, input.password);
+      const totpOk = ok && (await this.totp.verify(user.id, input.code));
+      if (!totpOk) throw new AppException(ErrorCode.UNAUTHENTICATED, PASSWORD_ERROR, 401);
+    }
+    const until = new Date(Date.now() + 5 * 60_000);
+    await this.sessions.setStepUp(principal.sid, until);
+  }
+
+  async openSession(input: {
+    userId: string;
+    roles: Role[];
+    roleVersion: number;
+    deviceId: string;
+    deviceLabel?: string;
+    userAgent?: string;
+    ip: string;
+    authMethod: string;
+  }): Promise<IssuedLogin> {
+    const issued = await this.sessions.create({
+      userId: input.userId,
+      roles: input.roles,
+      deviceId: input.deviceId,
+      deviceLabel: input.deviceLabel,
+      userAgent: input.userAgent,
+      ip: input.ip,
+      authMethod: input.authMethod,
+    });
+    const access = await this.tokens.issueAccessToken({
+      userId: input.userId,
+      sid: issued.sid,
+      roleVersion: input.roleVersion,
+      role: issued.role,
+    });
+    await this.users.markLogin(input.userId);
+    return {
+      accessToken: access.accessToken,
+      expiresIn: access.expiresIn,
+      refreshToken: issued.refreshToken,
+      refreshExpiresAt: issued.refreshExpiresAt,
+      csrfToken: generateCsrfToken(),
+    };
+  }
+
+  async requestPinReset(phone: string): Promise<void> {
+    const user = await this.users.findByPhone(phone);
+    if (!user || !user.roles.every((role) => role === Role.FARMER) || !user.phone) return;
+    await this.otp.issue({ userId: user.id, phone: user.phone, purpose: OtpPurpose.PIN_RESET });
+  }
+
+  async confirmPinReset(phone: string, code: string, pin: string): Promise<void> {
+    const normalized = normalizeEthiopianPhone(phone);
+    const user = normalized ? await this.users.findByPhone(normalized) : null;
+    if (!user) throw new AppException(ErrorCode.UNAUTHENTICATED, 'Invalid or expired code', 401);
+    await this.otp.verifyLatest({ phone: user.phone, purpose: OtpPurpose.PIN_RESET, code });
+    this.credentials.assertValidPin(pin, { phone: user.phone });
+    await this.credentials.setSecret(user.id, CredentialType.PIN, pin);
+    await this.sessions.revokeAllForUser(user.id, 'PIN_RESET');
+  }
+
+  async requestPasswordReset(email: string): Promise<void> {
+    const user = await this.users.findByEmail(email);
+    if (!user || user.roles.every((role) => role === Role.FARMER)) return;
+    const token = randomBytes(32).toString('base64url');
+    await this.otp.issue({
+      userId: user.id,
+      purpose: OtpPurpose.PASSWORD_RESET,
+      secret: token,
+      ttlMs: 30 * 60_000,
+    });
+  }
+
+  async confirmPasswordReset(token: string, code: string, password: string): Promise<void> {
+    const challenge = await this.otp.verifyToken(OtpPurpose.PASSWORD_RESET, token);
+    if (!challenge.userId) {
+      throw new AppException(ErrorCode.UNAUTHENTICATED, 'Invalid or expired code', 401);
+    }
+    const user = await this.users.getByIdOrFail(challenge.userId);
+    const totpOk = await this.totp.verify(user.id, code);
+    const recoveryOk = totpOk ? false : await this.totp.useRecoveryCode(user.id, code);
+    if (!totpOk && !recoveryOk) {
+      throw new AppException(ErrorCode.UNAUTHENTICATED, 'Invalid or expired code', 401);
+    }
+    this.credentials.assertValidPassword(password, primaryRole(user.roles), {
+      fullName: user.fullName,
+      phone: user.phone,
+      email: user.email,
+    });
+    await this.credentials.setSecret(user.id, CredentialType.PASSWORD, password);
+    await this.sessions.revokeAllForUser(user.id, 'PASSWORD_RESET');
+  }
+
+  async changePin(userId: string, pin: string): Promise<void> {
+    const user = await this.users.getByIdOrFail(userId);
+    this.credentials.assertValidPin(pin, { phone: user.phone });
+    await this.credentials.setSecret(user.id, CredentialType.PIN, pin);
+  }
+
+  async changePassword(userId: string, password: string): Promise<void> {
+    const user = await this.users.getByIdOrFail(userId);
+    this.credentials.assertValidPassword(password, primaryRole(user.roles), {
+      fullName: user.fullName,
+      phone: user.phone,
+      email: user.email,
+    });
+    if (await this.credentials.isPasswordReused(user.id, password)) {
+      throw new AppException(
+        ErrorCode.VALIDATION_FAILED,
+        'Choose a password you have not used before',
+      );
+    }
+    await this.credentials.setSecret(user.id, CredentialType.PASSWORD, password);
+    await this.credentials.clearMustChange(user.id, CredentialType.PASSWORD);
+  }
+
+  async enrollTotp(input: { userId?: string; challengeId?: string }) {
+    const userId = input.userId ?? (await this.userIdFromChallenge(input.challengeId));
+    const user = await this.users.getByIdOrFail(userId);
+    return this.totp.enroll(user.id, user.email ?? user.phone ?? user.id);
+  }
+
+  async confirmTotp(input: {
+    userId?: string;
+    challengeId?: string;
+    code: string;
+    deviceId: string;
+    deviceLabel?: string;
+    ip: string;
+    userAgent?: string;
+  }): Promise<IssuedLogin & { recoveryCodes: string[] }> {
+    const userId = input.userId ?? (await this.userIdFromChallenge(input.challengeId));
+    const recoveryCodes = await this.totp.confirm(userId, input.code);
+    await this.users.setTotpEnabled(userId, true);
+    const user = await this.users.getByIdOrFail(userId);
+    if (user.status === UserStatus.PENDING_ACTIVATION) await this.users.activate(userId);
+    if (input.challengeId) await this.otp.consumeId(input.challengeId);
+    const session = await this.openSession({
+      userId,
+      roles: user.roles,
+      roleVersion: user.roleVersion,
+      deviceId: input.deviceId,
+      deviceLabel: input.deviceLabel,
+      userAgent: input.userAgent?.slice(0, 256),
+      ip: input.ip,
+      authMethod: 'password+totp',
+    });
+    return { ...session, recoveryCodes };
+  }
+
+  private async userIdFromChallenge(challengeId: string | undefined): Promise<string> {
+    if (!challengeId) {
+      throw new AppException(ErrorCode.UNAUTHENTICATED, 'Invalid or expired token', 401);
+    }
+    for (const purpose of [OtpPurpose.MFA_ENROLL, OtpPurpose.LOGIN_MFA]) {
+      try {
+        const pending = await this.otp.peek(challengeId, purpose);
+        if (pending.userId) return pending.userId;
+      } catch (error) {
+        if (!(error instanceof AppException)) throw error;
+      }
+    }
+    throw new AppException(ErrorCode.UNAUTHENTICATED, 'Invalid or expired code', 401);
   }
 
   private classify(input: LoginInput): {

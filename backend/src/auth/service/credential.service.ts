@@ -275,4 +275,85 @@ export class CredentialService {
     }
     return false;
   }
+
+  async saveTotpSecret(userId: string, secretEnc: string, session?: ClientSession): Promise<void> {
+    await this.model
+      .updateOne(
+        { userId: new Types.ObjectId(userId), type: CredentialType.TOTP },
+        { $set: { secretEnc, algo: 'aes-256-gcm' }, $unset: { confirmedAt: '' } },
+        { upsert: true, session },
+      )
+      .exec();
+  }
+
+  async readTotpSecret(userId: string): Promise<string | null> {
+    const credential = await this.model
+      .findOne({ userId: new Types.ObjectId(userId), type: CredentialType.TOTP })
+      .select('+secretEnc')
+      .exec();
+    return credential?.secretEnc ?? null;
+  }
+
+  async confirmTotp(userId: string, session?: ClientSession): Promise<void> {
+    await this.model
+      .updateOne(
+        { userId: new Types.ObjectId(userId), type: CredentialType.TOTP },
+        { $set: { confirmedAt: new Date() } },
+        { session },
+      )
+      .exec();
+  }
+
+  async saveRecoveryCodes(
+    userId: string,
+    codeHashes: string[],
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.model
+      .updateOne(
+        { userId: new Types.ObjectId(userId), type: CredentialType.RECOVERY_CODES },
+        { $set: { codeHashes, usedCount: 0 } },
+        { upsert: true, session },
+      )
+      .exec();
+  }
+
+  async readRecoveryHashes(userId: string): Promise<string[]> {
+    const credential = await this.model
+      .findOne({ userId: new Types.ObjectId(userId), type: CredentialType.RECOVERY_CODES })
+      .select('+codeHashes')
+      .exec();
+    return credential?.codeHashes ?? [];
+  }
+
+  async consumeRecoveryHash(userId: string, hash: string): Promise<void> {
+    await this.model
+      .updateOne(
+        { userId: new Types.ObjectId(userId), type: CredentialType.RECOVERY_CODES },
+        { $pull: { codeHashes: hash }, $inc: { usedCount: 1 } },
+      )
+      .exec();
+  }
+
+  async deleteMfa(userId: string, session?: ClientSession): Promise<void> {
+    await this.model
+      .deleteMany(
+        {
+          userId: new Types.ObjectId(userId),
+          type: { $in: [CredentialType.TOTP, CredentialType.RECOVERY_CODES] },
+        },
+        { session },
+      )
+      .exec();
+  }
+
+  async clearMustChange(userId: string, type: CredentialType, session?: ClientSession): Promise<void> {
+    await this.model
+      .updateOne(
+        { userId: new Types.ObjectId(userId), type },
+        { $set: { mustChange: false } },
+        { session },
+      )
+      .exec();
+  }
 }
