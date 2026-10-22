@@ -137,6 +137,16 @@ export class LocalCentersService {
     return toLocalCenterResponse(doc);
   }
 
+  async assertServes(centerId: string, kebeleId: string): Promise<void> {
+    const center = await this.requireCenter(centerId);
+    if (center.status !== CenterStatus.ACTIVE) {
+      throw new AppException(ErrorCode.VALIDATION_FAILED, 'This center is not active');
+    }
+    if (!center.servesKebeleIds.some((id) => String(id) === kebeleId)) {
+      throw new AppException(ErrorCode.VALIDATION_FAILED, 'This center does not serve the farmer');
+    }
+  }
+
   private async checkedAdmins(ids: string[], centerId?: string) {
     const admins = [];
     for (const id of ids) {

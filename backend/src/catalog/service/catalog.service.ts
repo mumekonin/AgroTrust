@@ -160,6 +160,50 @@ export class CatalogService {
     return toPriceResponse(doc);
   }
 
+  async requireActiveInput(id: string): Promise<void> {
+    if (!Types.ObjectId.isValid(id)) throw new AppException(ErrorCode.VALIDATION_FAILED, 'Invalid input');
+    const input = await this.inputs.findById(id).select({ active: 1 }).lean().exec();
+    if (!input) throw new AppException(ErrorCode.NOT_FOUND, 'Input not found', 404);
+    if (!input.active) throw new AppException(ErrorCode.VALIDATION_FAILED, 'This input is not active');
+  }
+
+  /** Approved price in force. A regional price wins over the national one. */
+  async officialPrice(
+    inputId: string,
+    seasonId: string,
+    regionId: string,
+    now = new Date(),
+  ): Promise<{ unitPriceSantimPerKg: number; subsidySantimPerKg: number }> {
+    await this.requireActiveInput(inputId);
+    if (!Types.ObjectId.isValid(seasonId)) throw new AppException(ErrorCode.VALIDATION_FAILED, 'Invalid season');
+    const rows = await this.prices
+      .find({
+        inputId: new Types.ObjectId(inputId),
+        seasonId: new Types.ObjectId(seasonId),
+        approvedBy: { $exists: true },
+      })
+      .lean()
+      .exec();
+    const current = pickCurrentPrice(
+      rows.map((price) => ({
+        id: String(price._id),
+        regionId: price.regionId ? String(price.regionId) : undefined,
+        unitPriceSantimPerKg: price.unitPriceSantimPerKg,
+        subsidySantimPerKg: price.subsidySantimPerKg,
+        effectiveFrom: price.effectiveFrom,
+        effectiveTo: price.effectiveTo ?? undefined,
+        approved: Boolean(price.approvedBy),
+      })),
+      now,
+      regionId,
+    );
+    if (!current) throw new AppException(ErrorCode.NOT_FOUND, 'No official price is in force', 404);
+    return {
+      unitPriceSantimPerKg: current.unitPriceSantimPerKg,
+      subsidySantimPerKg: current.subsidySantimPerKg,
+    };
+  }
+
   private async attachPrices(
     inputs: Array<{
       _id: Types.ObjectId;

@@ -17,6 +17,8 @@ import { FarmersModule } from './farmers/farmers.module.js';
 import { LocalCentersModule } from './local-centers/local-centers.module.js';
 import { DistributorsModule } from './distributors/distributors.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
+import { AllocationsModule } from './allocations/allocations.module.js';
+import { RequestsModule } from './requests/requests.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -37,6 +39,8 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     LocalCentersModule,
     DistributorsModule,
     NotificationsModule,
+    AllocationsModule,
+    RequestsModule,
     ObserveModule.forRoot({
       appKey: 'YOUR_APP_KEY',
       appSecret: 'YOUR_APP_SECRET',

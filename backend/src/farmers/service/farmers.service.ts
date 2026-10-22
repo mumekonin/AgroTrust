@@ -309,6 +309,49 @@ export class FarmersService {
     };
   }
 
+  async findOwn(userId: string): Promise<FarmerRecord | null> {
+    if (!Types.ObjectId.isValid(userId)) return null;
+    const doc = await this.farmers.findOne({ userId: new Types.ObjectId(userId) }).lean().exec();
+    return doc ? toRecord(doc) : null;
+  }
+
+  async readRecord(id: string): Promise<FarmerRecord> {
+    return toRecord(await this.requireFarmer(id));
+  }
+
+  /** Verified and unverified farmers, excluding suspended. Scope is applied here. */
+  async allocationPage(
+    principal: Principal,
+    query: { regionId?: string; cropFilter?: string; afterId?: string; limit: number },
+  ): Promise<FarmerRecord[]> {
+    if (!principal.roles.includes(Role.NATIONAL_ADMIN) && !principal.roles.includes(Role.REGIONAL_ADMIN)) {
+      throw new AppException(ErrorCode.FORBIDDEN, 'You cannot do that', 403);
+    }
+    if (
+      query.regionId &&
+      !principal.roles.includes(Role.NATIONAL_ADMIN) &&
+      !principal.scope.regionIds.includes(query.regionId)
+    ) {
+      throw new AppException(ErrorCode.FORBIDDEN, 'You cannot do that', 403);
+    }
+    const filter: Record<string, unknown> = { status: { $ne: FarmerStatus.SUSPENDED } };
+    if (!principal.roles.includes(Role.NATIONAL_ADMIN)) {
+      filter['geo.regionId'] = {
+        $in: principal.scope.regionIds.map((id) => new Types.ObjectId(id)),
+      };
+    }
+    if (query.regionId) filter['geo.regionId'] = new Types.ObjectId(query.regionId);
+    if (query.cropFilter) filter.crops = query.cropFilter;
+    if (query.afterId) {
+      if (!Types.ObjectId.isValid(query.afterId)) {
+        throw new AppException(ErrorCode.VALIDATION_FAILED, 'Invalid cursor');
+      }
+      filter._id = { $gt: new Types.ObjectId(query.afterId) };
+    }
+    const docs = await this.farmers.find(filter).sort({ _id: 1 }).limit(query.limit).lean().exec();
+    return docs.map((doc) => toRecord(doc));
+  }
+
   async matchingIds(principal: Principal): Promise<string[] | null> {
     if (principal.roles.includes(Role.NATIONAL_ADMIN) || principal.roles.includes(Role.AUDITOR)) {
       return null;
@@ -354,6 +397,46 @@ export class FarmersService {
     if (!farmer) throw new AppException(ErrorCode.NOT_FOUND, 'Farmer not found', 404);
     return farmer;
   }
+}
+
+export interface FarmerRecord {
+  id: string;
+  userId?: string;
+  status: FarmerStatus;
+  fullName: string;
+  localCenterId: string;
+  regionId: string;
+  kebeleId: string;
+  landHoldingHa: number;
+  crops: string[];
+  phone: string;
+  smsEnabled: boolean;
+}
+
+function toRecord(doc: {
+  _id: Types.ObjectId;
+  userId?: Types.ObjectId;
+  status: FarmerStatus;
+  fullName: string;
+  localCenterId: Types.ObjectId;
+  geo: { regionId: Types.ObjectId; kebeleId: Types.ObjectId };
+  landHoldingHa: number;
+  crops?: string[];
+  contact: { phone: string; smsEnabled?: boolean };
+}): FarmerRecord {
+  return {
+    id: String(doc._id),
+    userId: doc.userId ? String(doc.userId) : undefined,
+    status: doc.status,
+    fullName: doc.fullName,
+    localCenterId: String(doc.localCenterId),
+    regionId: String(doc.geo.regionId),
+    kebeleId: String(doc.geo.kebeleId),
+    landHoldingHa: doc.landHoldingHa,
+    crops: doc.crops ?? [],
+    phone: doc.contact.phone,
+    smsEnabled: doc.contact.smsEnabled ?? true,
+  };
 }
 
 function newActivationCode(): string {
