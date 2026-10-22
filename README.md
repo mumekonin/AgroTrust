@@ -67,9 +67,7 @@ AgroTrust enables **verified, direct access** to agricultural inputs. It provide
 - Role- and scope-based access control, enforced in guards and in the data layer.
 - Hash-chained audit log, strict rate limiting, and data minimization (distributors never see phone numbers).
 
-Details: [`AUTH_DESIGN.md`](AUTH_DESIGN.md).
 
----
 
 ## 🛠️ Tech Stack
 
@@ -86,14 +84,9 @@ Details: [`AUTH_DESIGN.md`](AUTH_DESIGN.md).
 
 ---
 
-## 📚 Documentation
 
-| Document | Contents |
-|---|---|
-| [`BACKEND_DESIGN.md`](BACKEND_DESIGN.md) | Architecture, modules, database schema, transactions, API, security, jobs, testing, build order |
-| [`AUTH_DESIGN.md`](AUTH_DESIGN.md) | Authentication, sessions, MFA, invitations, RBAC, threat model |
-| [`DECISIONS.md`](DECISIONS.md) | Resolved design decisions, payment model, scale targets, deployment and rollout plan |
 
----
+  Name : Mulualem Mekonin
+  Id :CTC-3181-26
 
 
