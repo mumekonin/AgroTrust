@@ -9,16 +9,19 @@ import { SecurityModule } from './common/security/security.module.js';
 import { CommonModule } from './common/common.module.js';
 import { HealthModule } from './health/health.module.js';
 import { UsersModule } from './users/users.module.js';
+import { AuthModule } from './auth/auth.module.js';
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
 @Module({
-  imports: [ AppConfigModule,
-  LoggingModule,
-  DatabaseModule,
-  SecurityModule,
-  CommonModule,
-  HealthModule,
-  UsersModule,
+  imports: [
+    AppConfigModule,
+    LoggingModule,
+    DatabaseModule,
+    SecurityModule,
+    CommonModule,
+    HealthModule,
+    UsersModule,
+    AuthModule,
     ObserveModule.forRoot({
       appKey: 'YOUR_APP_KEY',
       appSecret: 'YOUR_APP_SECRET',
