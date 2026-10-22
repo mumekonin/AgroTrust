@@ -319,6 +319,26 @@ export class FarmersService {
     return toRecord(await this.requireFarmer(id));
   }
 
+  /** Callers enforce scope. Phone is for SMS only and must not be copied into distributor responses. */
+  async lookupMany(ids: string[]): Promise<Map<string, FarmerLookup>> {
+    const unique = [...new Set(ids)].filter((id) => Types.ObjectId.isValid(id));
+    const found = new Map<string, FarmerLookup>();
+    for (let index = 0; index < unique.length; index += 500) {
+      const slice = unique.slice(index, index + 500).map((id) => new Types.ObjectId(id));
+      const docs = await this.farmers
+        .find({ _id: { $in: slice } })
+        .lean()
+        .exec();
+      for (const doc of docs) {
+        found.set(String(doc._id), {
+          ...toRecord(doc),
+          registryId: doc.registryId,
+        });
+      }
+    }
+    return found;
+  }
+
   /** Verified and unverified farmers, excluding suspended. Scope is applied here. */
   async allocationPage(
     principal: Principal,
@@ -397,6 +417,10 @@ export class FarmersService {
     if (!farmer) throw new AppException(ErrorCode.NOT_FOUND, 'Farmer not found', 404);
     return farmer;
   }
+}
+
+export interface FarmerLookup extends FarmerRecord {
+  registryId: string;
 }
 
 export interface FarmerRecord {

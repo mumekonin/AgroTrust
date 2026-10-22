@@ -15,7 +15,7 @@ import {
   type InputResponse,
   type PriceResponse,
 } from '../response/catalog.response.js';
-import { BASE_UNIT, Input } from '../schema/input.schema.js';
+import { BASE_UNIT, Input, type InputCategory } from '../schema/input.schema.js';
 import { Price } from '../schema/price.schema.js';
 
 const DEFAULT_LIMIT = 50;
@@ -158,6 +158,19 @@ export class CatalogService {
     doc.approvedBy = new Types.ObjectId(actorId);
     await doc.save();
     return toPriceResponse(doc);
+  }
+
+  async activeIdsForCategory(category: InputCategory): Promise<string[]> {
+    const docs = await this.inputs.find({ category, active: true }).select({ _id: 1 }).lean().exec();
+    return docs.map((doc) => String(doc._id));
+  }
+
+  async categoryOf(id: string): Promise<InputCategory> {
+    if (!Types.ObjectId.isValid(id)) throw new AppException(ErrorCode.VALIDATION_FAILED, 'Invalid input');
+    const input = await this.inputs.findById(id).select({ category: 1, active: 1 }).lean().exec();
+    if (!input) throw new AppException(ErrorCode.NOT_FOUND, 'Input not found', 404);
+    if (!input.active) throw new AppException(ErrorCode.VALIDATION_FAILED, 'This input is not active');
+    return input.category;
   }
 
   async requireActiveInput(id: string): Promise<void> {

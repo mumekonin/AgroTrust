@@ -51,6 +51,15 @@ export class SeasonsService {
     return toSeasonResponse(doc);
   }
 
+  async pastRequisitionCutoff(now: Date): Promise<string[]> {
+    const docs = await this.model
+      .find({ requisitionCutoffAt: { $lte: now } })
+      .select({ _id: 1 })
+      .lean()
+      .exec();
+    return docs.map((doc) => String(doc._id));
+  }
+
   async create(input: CreateSeasonDto): Promise<SeasonResponse> {
     const window = toWindow(input);
     const doc = await this.model.create({

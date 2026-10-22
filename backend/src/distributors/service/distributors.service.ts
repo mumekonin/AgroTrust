@@ -124,6 +124,30 @@ export class DistributorsService {
     return toDistributorResponse(distributor);
   }
 
+  /** Lowest priority number wins. A suspended distributor is skipped. */
+  async assignedDistributor(
+    seasonId: string,
+    localCenterId: string,
+    inputCategory: DistributorAssignment['inputCategory'],
+  ): Promise<{ distributorId: string }> {
+    const rows = await this.assignments
+      .find({
+        seasonId: objectId(seasonId, 'Invalid season'),
+        localCenterId: objectId(localCenterId, 'Invalid center'),
+        inputCategory,
+        approvedBy: { $exists: true },
+      })
+      .sort({ priority: 1 })
+      .exec();
+    for (const row of rows) {
+      const distributor = await this.distributors.findById(row.distributorId).exec();
+      if (distributor?.status === DistributorStatus.ACTIVE) {
+        return { distributorId: String(distributor._id) };
+      }
+    }
+    throw new AppException(ErrorCode.NOT_FOUND, 'No distributor is assigned', 404);
+  }
+
   async listAssignments(
     principal: Principal,
     query: { seasonId?: string; localCenterId?: string; cursor?: string; limit?: number },
