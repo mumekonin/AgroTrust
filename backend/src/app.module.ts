@@ -16,6 +16,7 @@ import { CatalogModule } from './catalog/catalog.module.js';
 import { FarmersModule } from './farmers/farmers.module.js';
 import { LocalCentersModule } from './local-centers/local-centers.module.js';
 import { DistributorsModule } from './distributors/distributors.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -35,6 +36,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     FarmersModule,
     LocalCentersModule,
     DistributorsModule,
+    NotificationsModule,
     ObserveModule.forRoot({
       appKey: 'YOUR_APP_KEY',
       appSecret: 'YOUR_APP_SECRET',

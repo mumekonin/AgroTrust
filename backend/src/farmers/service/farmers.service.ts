@@ -309,6 +309,14 @@ export class FarmersService {
     };
   }
 
+  async matchingIds(principal: Principal): Promise<string[] | null> {
+    if (principal.roles.includes(Role.NATIONAL_ADMIN) || principal.roles.includes(Role.AUDITOR)) {
+      return null;
+    }
+    const docs = await this.farmers.find(this.scopeFilter(principal)).select('_id').lean().exec();
+    return docs.map((doc) => String(doc._id));
+  }
+
   private scopeFilter(principal: Principal): Record<string, unknown> {
     if (principal.roles.includes(Role.NATIONAL_ADMIN)) return {};
     if (principal.roles.includes(Role.REGIONAL_ADMIN)) {
