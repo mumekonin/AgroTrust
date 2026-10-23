@@ -29,12 +29,27 @@ export const envSchema = z.object({
   SMS_SENDER_ID: z.string().min(1).max(11).default('AgroTrust'),
   SMS_DAILY_BUDGET: z.coerce.number().int().positive().optional(),
 }).superRefine((env, ctx) => {
+  if (env.NODE_ENV === 'production' && env.SMS_GATEWAY !== 'http') {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['SMS_GATEWAY'],
+      message: 'Production requires the HTTP SMS gateway',
+    });
+  }
   if (env.SMS_GATEWAY !== 'http') return;
   if (!env.SMS_GATEWAY_URL) {
-    ctx.addIssue({ code: 'custom', path: ['SMS_GATEWAY_URL'], message: 'Required when SMS_GATEWAY is http' });
+    ctx.addIssue({
+      code: 'custom',
+      path: ['SMS_GATEWAY_URL'],
+      message: 'Required when SMS_GATEWAY is http',
+    });
   }
   if (!env.SMS_GATEWAY_KEY) {
-    ctx.addIssue({ code: 'custom', path: ['SMS_GATEWAY_KEY'], message: 'Required when SMS_GATEWAY is http' });
+    ctx.addIssue({
+      code: 'custom',
+      path: ['SMS_GATEWAY_KEY'],
+      message: 'Required when SMS_GATEWAY is http',
+    });
   }
 });
 

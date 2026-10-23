@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { createObserveModule } from '@nestjs/observe';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AppConfigModule } from './config/app-config.module.js';
@@ -24,8 +23,7 @@ import { PickupsModule } from './pickups/pickups.module.js';
 import { RequisitionsModule } from './requisitions/requisitions.module.js';
 import { ShipmentsModule } from './shipments/shipments.module.js';
 import { AnalyticsModule } from './analytics/analytics.module.js';
-
-export const { ObserveModule, ObserveInstrument } = createObserveModule();
+import { MetricsModule } from './metrics/metrics.module.js';
 
 @Module({
   imports: [
@@ -51,11 +49,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     ShipmentsModule,
     PickupsModule,
     AnalyticsModule,
-    ObserveModule.forRoot({
-      appKey: 'YOUR_APP_KEY',
-      appSecret: 'YOUR_APP_SECRET',
-      serviceId: 'backend',
-    }),
+    MetricsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

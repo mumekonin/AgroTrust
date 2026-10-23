@@ -145,6 +145,19 @@ export class NotificationsService {
     return sent;
   }
 
+  async outboxDepth(now = new Date()): Promise<{ queued: number; oldestAgeSeconds: number }> {
+    const queued = await this.notifications.countDocuments({ status: NotificationStatus.QUEUED }).exec();
+    const oldest = await this.notifications
+      .findOne({ status: NotificationStatus.QUEUED })
+      .sort({ createdAt: 1 })
+      .select({ createdAt: 1 })
+      .lean<{ createdAt?: Date }>()
+      .exec();
+    const createdAt = oldest?.createdAt ? new Date(oldest.createdAt) : undefined;
+    const oldestAgeSeconds = createdAt ? Math.max(0, (now.getTime() - createdAt.getTime()) / 1000) : 0;
+    return { queued, oldestAgeSeconds };
+  }
+
   private async alertBudget(now: Date): Promise<void> {
     const budget = this.config.get('SMS_DAILY_BUDGET', { infer: true });
     const fraud = this.fraud;

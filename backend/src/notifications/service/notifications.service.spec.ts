@@ -28,7 +28,12 @@ describe('sms templates', () => {
 });
 
 describe('NotificationsService', () => {
-  const notifications = { findOne: vi.fn(), create: vi.fn(), findOneAndUpdate: vi.fn() };
+  const notifications = {
+    findOne: vi.fn(),
+    create: vi.fn(),
+    findOneAndUpdate: vi.fn(),
+    countDocuments: vi.fn(),
+  };
   const farmers = { matchingIds: vi.fn() };
   const gateway = { send: vi.fn() };
   const config = { get: vi.fn().mockReturnValue(pepper) };
@@ -125,6 +130,22 @@ describe('NotificationsService', () => {
     expect(updated.status).toBe('delivered');
     expect(updated.body).toBe('AgroTrust code ******.');
     expect(doc.body).toBe('AgroTrust code ******.');
+  });
+
+  it('reports how deep the SMS queue is', async () => {
+    notifications.countDocuments.mockReturnValue({ exec: async () => 2 });
+    notifications.findOne.mockReturnValue({
+      sort: () => ({
+        select: () => ({
+          lean: () => ({ exec: async () => ({ createdAt: new Date('2026-10-23T00:00:00.000Z') }) }),
+        }),
+      }),
+    });
+
+    await expect(service.outboxDepth(new Date('2026-10-23T00:01:00.000Z'))).resolves.toEqual({
+      queued: 2,
+      oldestAgeSeconds: 60,
+    });
   });
 
   it('opens one budget flag when sent messages pass the daily budget', async () => {
