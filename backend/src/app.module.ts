@@ -19,6 +19,7 @@ import { DistributorsModule } from './distributors/distributors.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { AllocationsModule } from './allocations/allocations.module.js';
 import { RequestsModule } from './requests/requests.module.js';
+import { PaymentsModule } from './payments/payments.module.js';
 import { RequisitionsModule } from './requisitions/requisitions.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
@@ -43,6 +44,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     AllocationsModule,
     RequestsModule,
     RequisitionsModule,
+    PaymentsModule,
     ObserveModule.forRoot({
       appKey: 'YOUR_APP_KEY',
       appSecret: 'YOUR_APP_SECRET',

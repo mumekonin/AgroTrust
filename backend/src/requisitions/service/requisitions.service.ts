@@ -441,6 +441,39 @@ export class RequisitionsService {
     });
   }
 
+ async idsForDistributor(distributorId: string): Promise<string[]> {
+    const docs = await this.requisitions
+      .find({ distributorId: objectId(distributorId, 'Invalid distributor') })
+      .select({ _id: 1 })
+      .lean()
+      .exec();
+    return docs.map((doc) => String(doc._id));
+  }
+
+  /** Adds accepted kilograms onto the requisition line. The request status update is the guard against paying twice. */
+  async recordPaid(
+    requisitionId: string,
+    quantities: { inputId: string; qtyKg: number }[],
+    session: ClientSession,
+  ): Promise<void> {
+    for (const line of quantities) {
+      if (line.qtyKg <= 0) continue;
+      const result = await this.requisitions
+        .updateOne(
+          {
+            _id: objectId(requisitionId, 'Invalid requisition'),
+            'lines.inputId': objectId(line.inputId, 'Invalid input'),
+          },
+          { $inc: { 'lines.$.paidKg': line.qtyKg } },
+          { session },
+        )
+        .exec();
+      if (result.matchedCount !== 1) {
+        throw new AppException(ErrorCode.CONFLICT, 'Paid quantity could not be recorded', 409);
+      }
+    }
+  }
+
   private async bundle(seasonId: string, centerId: string, category: InputCategory) {
     const inputIds = await this.catalog.activeIdsForCategory(category);
     return this.requests.bundle(centerId, seasonId, inputIds);
