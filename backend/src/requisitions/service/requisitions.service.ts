@@ -450,6 +450,58 @@ export class RequisitionsService {
     return docs.map((doc) => String(doc._id));
   }
 
+  async readForDispatch(id: string): Promise<{
+    id: string;
+    distributorId: string;
+    localCenterId: string;
+    seasonId: string;
+    status: RequisitionStatus;
+    ready: boolean;
+    lines: { inputId: string; acceptedKg: number; paidKg: number; shippedKg: number; receivedKg: number }[];
+  }> {
+    const doc = await this.requireRequisition(id);
+    return {
+      id: String(doc._id),
+      distributorId: String(doc.distributorId),
+      localCenterId: String(doc.localCenterId),
+      seasonId: String(doc.seasonId),
+      status: doc.status,
+      ready: doc.processing?.status !== ProcessingState.RUNNING,
+      lines: doc.lines.map((line) => ({
+        inputId: String(line.inputId),
+        acceptedKg: line.acceptedKg,
+        paidKg: line.paidKg,
+        shippedKg: line.shippedKg,
+        receivedKg: line.receivedKg,
+      })),
+    };
+  }
+
+  /** Shipped kilograms cannot pass the paid kilograms. */
+  async recordShipped(
+    requisitionId: string,
+    quantities: { inputId: string; qtyKg: number }[],
+    session: ClientSession,
+  ): Promise<void> {
+    for (const line of quantities) {
+      const ok = await this.incLine(requisitionId, line.inputId, 'shippedKg', 'paidKg', line.qtyKg, session);
+      if (!ok) throw new AppException(ErrorCode.CONFLICT, 'Shipped quantity exceeds the paid quantity', 409);
+    }
+  }
+
+  /** Received kilograms cannot pass the accepted kilograms. */
+  async recordReceived(
+    requisitionId: string,
+    quantities: { inputId: string; qtyKg: number }[],
+    session: ClientSession,
+  ): Promise<void> {
+    for (const line of quantities) {
+      const ok = await this.incLine(requisitionId, line.inputId, 'receivedKg', 'acceptedKg', line.qtyKg, session);
+      if (!ok) throw new AppException(ErrorCode.CONFLICT, 'Received quantity exceeds the accepted quantity', 409);
+    }
+    await this.fulfillIfComplete(requisitionId, session);
+  }
+
   /** Adds accepted kilograms onto the requisition line. The request status update is the guard against paying twice. */
   async recordPaid(
     requisitionId: string,
@@ -472,6 +524,73 @@ export class RequisitionsService {
         throw new AppException(ErrorCode.CONFLICT, 'Paid quantity could not be recorded', 409);
       }
     }
+  }
+
+  private async incLine(
+    requisitionId: string,
+    inputId: string,
+    field: 'shippedKg' | 'receivedKg',
+    cap: 'paidKg' | 'acceptedKg',
+    qty: number,
+    session: ClientSession,
+  ): Promise<boolean> {
+    if (qty <= 0) return true;
+    const input = objectId(inputId, 'Invalid input');
+    const result = await this.requisitions
+      .updateOne(
+        {
+          _id: objectId(requisitionId, 'Invalid requisition'),
+          'lines.inputId': input,
+          $expr: {
+            $let: {
+              vars: {
+                line: {
+                  $first: {
+                    $filter: { input: '$lines', as: 'line', cond: { $eq: ['$$line.inputId', input] } },
+                  },
+                },
+              },
+              in: { $lte: [{ $add: [`$$line.${field}`, qty] }, `$$line.${cap}`] },
+            },
+          },
+        },
+        { $inc: { [`lines.$.${field}`]: qty } },
+        { session },
+      )
+      .exec();
+    return result.matchedCount === 1;
+  }
+
+  private async fulfillIfComplete(requisitionId: string, session: ClientSession): Promise<void> {
+    const now = new Date();
+    await this.requisitions
+      .updateOne(
+        {
+          _id: objectId(requisitionId, 'Invalid requisition'),
+          status: { $in: [RequisitionStatus.ACCEPTED, RequisitionStatus.PARTIALLY_ACCEPTED] },
+          'lines.0': { $exists: true },
+          $expr: {
+            $eq: [
+              {
+                $size: {
+                  $filter: {
+                    input: '$lines',
+                    as: 'line',
+                    cond: { $ne: ['$$line.acceptedKg', '$$line.receivedKg'] },
+                  },
+                },
+              },
+              0,
+            ],
+          },
+        },
+        {
+          $set: { status: RequisitionStatus.FULFILLED },
+          $push: { statusHistory: { status: RequisitionStatus.FULFILLED, at: now } },
+        },
+        { session },
+      )
+      .exec();
   }
 
   private async bundle(seasonId: string, centerId: string, category: InputCategory) {

@@ -21,6 +21,7 @@ import { AllocationsModule } from './allocations/allocations.module.js';
 import { RequestsModule } from './requests/requests.module.js';
 import { PaymentsModule } from './payments/payments.module.js';
 import { RequisitionsModule } from './requisitions/requisitions.module.js';
+import { ShipmentsModule } from './shipments/shipments.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -45,6 +46,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     RequestsModule,
     RequisitionsModule,
     PaymentsModule,
+    ShipmentsModule,
     ObserveModule.forRoot({
       appKey: 'YOUR_APP_KEY',
       appSecret: 'YOUR_APP_SECRET',

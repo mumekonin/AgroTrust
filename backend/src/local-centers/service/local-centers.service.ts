@@ -62,6 +62,11 @@ export class LocalCentersService {
     return toLocalCenterResponse(center);
   }
 
+  async readName(id: string): Promise<string> {
+    const center = await this.requireCenter(id);
+    return center.name;
+  }
+
   async idsInScope(principal: Principal): Promise<string[]> {
     const docs = await this.centers.find(this.scopeFilter(principal)).select('_id').lean().exec();
     return docs.map((doc) => String(doc._id));

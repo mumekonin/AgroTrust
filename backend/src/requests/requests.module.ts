@@ -13,6 +13,7 @@ import { LocalRequestsController, RequestsController } from './controller/reques
 import { InputRequest, InputRequestSchema, RequestCounter, RequestCounterSchema } from './schema/input-request.schema.js';
 import { RequestPaymentService } from './service/request-payment.service.js';
 import { RequestRequisitionService } from './service/request-requisition.service.js';
+import { RequestShipmentService } from './service/request-shipment.service.js';
 import { RequestsService } from './service/requests.service.js';
 
 @Module({
@@ -32,7 +33,7 @@ import { RequestsService } from './service/requests.service.js';
     ]),
   ],
   controllers: [RequestsController, LocalRequestsController],
-  providers: [RequestsService, RequestRequisitionService, RequestPaymentService],
-  exports: [RequestsService, RequestRequisitionService, RequestPaymentService],
+  providers: [RequestsService, RequestRequisitionService, RequestPaymentService, RequestShipmentService],
+  exports: [RequestsService, RequestRequisitionService, RequestPaymentService, RequestShipmentService],
 })
 export class RequestsModule {}
