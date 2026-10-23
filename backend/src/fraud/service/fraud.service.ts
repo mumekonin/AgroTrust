@@ -15,8 +15,8 @@ export class FraudService {
       type: string;
       severity: string;
       localCenterId: string;
-      distributorId: string;
-      shipmentId: string;
+      distributorId?: string;
+      shipmentId?: string;
       details: Record<string, unknown>;
     },
     session: ClientSession,
@@ -27,8 +27,8 @@ export class FraudService {
           type: input.type,
           severity: input.severity,
           localCenterId: objectId(input.localCenterId),
-          distributorId: objectId(input.distributorId),
-          shipmentId: objectId(input.shipmentId),
+          distributorId: input.distributorId ? objectId(input.distributorId) : undefined,
+          shipmentId: input.shipmentId ? objectId(input.shipmentId) : undefined,
           details: input.details,
           status: FraudFlagStatus.OPEN,
         },

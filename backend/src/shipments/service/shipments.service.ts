@@ -322,6 +322,18 @@ export class ShipmentsService {
     return toShipmentResponse(updated);
   }
 
+  async receivedByForRequest(requestId: string): Promise<string | undefined> {
+    if (!Types.ObjectId.isValid(requestId)) return undefined;
+    const allocation = await this.allocations
+      .findOne({ requestId: objectId(requestId, 'Invalid request') })
+      .select({ shipmentId: 1 })
+      .lean()
+      .exec();
+    if (!allocation) return undefined;
+    const shipment = await this.shipments.findById(allocation.shipmentId).select({ receivedBy: 1 }).lean().exec();
+    return shipment?.receivedBy ? String(shipment.receivedBy) : undefined;
+  }
+
   async processDue(): Promise<void> {
     const running = await this.shipments
       .findOne({ 'processing.status': ShipmentProcessingState.RUNNING })

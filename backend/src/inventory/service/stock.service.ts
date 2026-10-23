@@ -57,7 +57,7 @@ export class StockService {
       inputId: string;
       seasonId: string;
       qtyKg: number;
-      shipmentId: string;
+      shipmentId?: string;
       requestId: string;
       actorId?: string;
     },
@@ -80,6 +80,114 @@ export class StockService {
       throw new AppException(ErrorCode.INSUFFICIENT_STOCK, 'There is not enough stock to earmark', 409);
     }
     await this.append(StockMovementType.RESERVATION, input, session);
+  }
+
+  /** Hands the earmarked kilograms to the farmer. */
+  async issue(
+    input: {
+      localCenterId: string;
+      inputId: string;
+      seasonId: string;
+      qtyKg: number;
+      shipmentId?: string;
+      requestId: string;
+      actorId?: string;
+    },
+    session: ClientSession,
+  ): Promise<void> {
+    if (input.qtyKg <= 0) return;
+    const result = await this.stock
+      .updateOne(
+        {
+          localCenterId: objectId(input.localCenterId, 'Invalid center'),
+          inputId: objectId(input.inputId, 'Invalid input'),
+          seasonId: objectId(input.seasonId, 'Invalid season'),
+          onHandKg: { $gte: input.qtyKg },
+          reservedKg: { $gte: input.qtyKg },
+        },
+        { $inc: { onHandKg: -input.qtyKg, reservedKg: -input.qtyKg } },
+        { session },
+      )
+      .exec();
+    if (result.matchedCount !== 1) {
+      throw new AppException(ErrorCode.INSUFFICIENT_STOCK, 'There is not enough stock to hand over', 409);
+    }
+    await this.append(StockMovementType.ISSUE, input, session);
+  }
+
+  /** Drops the earmark and leaves the kilograms on hand. */
+  async releaseReserve(
+    input: {
+      localCenterId: string;
+      inputId: string;
+      seasonId: string;
+      qtyKg: number;
+      shipmentId?: string;
+      requestId: string;
+      actorId?: string;
+    },
+    session: ClientSession,
+  ): Promise<void> {
+    if (input.qtyKg <= 0) return;
+    const result = await this.stock
+      .updateOne(
+        {
+          localCenterId: objectId(input.localCenterId, 'Invalid center'),
+          inputId: objectId(input.inputId, 'Invalid input'),
+          seasonId: objectId(input.seasonId, 'Invalid season'),
+          reservedKg: { $gte: input.qtyKg },
+        },
+        { $inc: { reservedKg: -input.qtyKg } },
+        { session },
+      )
+      .exec();
+    if (result.matchedCount !== 1) {
+      throw new AppException(ErrorCode.CONFLICT, 'Reserved stock could not be released', 409);
+    }
+    await this.append(StockMovementType.RELEASE, input, session);
+  }
+
+  async unreservedPage(seasonIds: string[]): Promise<{ id: string; localCenterId: string; inputId: string; seasonId: string; qtyKg: number }[]> {
+    if (seasonIds.length === 0) return [];
+    const docs = await this.stock
+      .find({
+        seasonId: { $in: seasonIds.map((id) => objectId(id, 'Invalid season')) },
+        $expr: { $gt: ['$onHandKg', '$reservedKg'] },
+      })
+      .limit(300)
+      .lean()
+      .exec();
+    return docs.map((doc) => ({
+      id: String(doc._id),
+      localCenterId: String(doc.localCenterId),
+      inputId: String(doc.inputId),
+      seasonId: String(doc.seasonId),
+      qtyKg: doc.onHandKg - doc.reservedKg,
+    }));
+  }
+
+  async returnUnreserved(id: string, qtyKg: number, session: ClientSession): Promise<boolean> {
+    const result = await this.stock
+      .updateOne(
+        { _id: objectId(id, 'Invalid stock'), $expr: { $gte: [{ $subtract: ['$onHandKg', '$reservedKg'] }, qtyKg] } },
+        { $inc: { onHandKg: -qtyKg } },
+        { session },
+      )
+      .exec();
+    if (result.matchedCount !== 1) return false;
+    const doc = await this.stock.findById(id).session(session).lean().exec();
+    if (!doc) return false;
+    await this.append(
+      StockMovementType.RETURN_TO_DISTRIBUTOR,
+      {
+        localCenterId: String(doc.localCenterId),
+        inputId: String(doc.inputId),
+        seasonId: String(doc.seasonId),
+        qtyKg,
+      },
+      session,
+    );
+    return true;
   }
 
   async listForCenters(centerIds: string[]): Promise<StockRow[]> {
@@ -107,7 +215,7 @@ export class StockService {
       seasonId: string;
       qtyKg: number;
       batchId?: string;
-      shipmentId: string;
+      shipmentId?: string;
       requestId?: string;
       actorId?: string;
       note?: string;
@@ -123,7 +231,7 @@ export class StockService {
           seasonId: objectId(input.seasonId, 'Invalid season'),
           qtyKg: input.qtyKg,
           batchId: input.batchId ? objectId(input.batchId, 'Invalid batch') : undefined,
-          shipmentId: objectId(input.shipmentId, 'Invalid shipment'),
+          shipmentId: input.shipmentId ? objectId(input.shipmentId, 'Invalid shipment') : undefined,
           requestId: input.requestId ? objectId(input.requestId, 'Invalid request') : undefined,
           actorId: input.actorId && Types.ObjectId.isValid(input.actorId) ? new Types.ObjectId(input.actorId) : undefined,
           note: input.note,

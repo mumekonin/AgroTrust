@@ -60,6 +60,11 @@ export class SeasonsService {
     return docs.map((doc) => String(doc._id));
   }
 
+  async endedIds(now: Date): Promise<string[]> {
+    const docs = await this.model.find({ endsAt: { $lte: now } }).select({ _id: 1 }).lean().exec();
+    return docs.map((doc) => String(doc._id));
+  }
+
   async create(input: CreateSeasonDto): Promise<SeasonResponse> {
     const window = toWindow(input);
     const doc = await this.model.create({

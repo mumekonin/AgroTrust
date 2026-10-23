@@ -320,6 +320,28 @@ export class AllocationsService {
     }
   }
 
+  /** Moves reserved kilograms into purchased kilograms when the farmer collects. */
+  async purchase(
+    input: { farmerId: string; seasonId: string; inputId: string; qtyKg: number },
+    session: ClientSession,
+  ): Promise<void> {
+    const result = await this.allocations
+      .updateOne(
+        {
+          farmerId: objectId(input.farmerId, 'Invalid farmer'),
+          seasonId: objectId(input.seasonId, 'Invalid season'),
+          inputId: objectId(input.inputId, 'Invalid input'),
+          reservedKg: { $gte: input.qtyKg },
+        },
+        { $inc: { reservedKg: -input.qtyKg, purchasedKg: input.qtyKg } },
+        { session },
+      )
+      .exec();
+    if (result.matchedCount !== 1) {
+      throw new AppException(ErrorCode.CONFLICT, 'Quota could not be purchased', 409);
+    }
+  }
+
   private async insertIfAbsent(input: {
     farmerId: string;
     seasonId: string;

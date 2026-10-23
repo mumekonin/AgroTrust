@@ -12,6 +12,7 @@ import { UsersModule } from '../users/users.module.js';
 import { LocalRequestsController, RequestsController } from './controller/requests.controller.js';
 import { InputRequest, InputRequestSchema, RequestCounter, RequestCounterSchema } from './schema/input-request.schema.js';
 import { RequestPaymentService } from './service/request-payment.service.js';
+import { RequestPickupService } from './service/request-pickup.service.js';
 import { RequestRequisitionService } from './service/request-requisition.service.js';
 import { RequestShipmentService } from './service/request-shipment.service.js';
 import { RequestsService } from './service/requests.service.js';
@@ -33,7 +34,7 @@ import { RequestsService } from './service/requests.service.js';
     ]),
   ],
   controllers: [RequestsController, LocalRequestsController],
-  providers: [RequestsService, RequestRequisitionService, RequestPaymentService, RequestShipmentService],
-  exports: [RequestsService, RequestRequisitionService, RequestPaymentService, RequestShipmentService],
+  providers: [RequestsService, RequestRequisitionService, RequestPaymentService, RequestShipmentService, RequestPickupService],
+  exports: [RequestsService, RequestRequisitionService, RequestPaymentService, RequestShipmentService, RequestPickupService],
 })
 export class RequestsModule {}
