@@ -126,6 +126,35 @@ describe('NotificationsService', () => {
     expect(updated.body).toBe('AgroTrust code ******.');
     expect(doc.body).toBe('AgroTrust code ******.');
   });
+
+  it('opens one budget flag when sent messages pass the daily budget', async () => {
+    const fraud = { hasOpen: vi.fn().mockResolvedValue(false), open: vi.fn() };
+    const handle = {
+      withTransaction: async (fn: () => unknown) => fn(),
+      endSession: vi.fn(),
+    };
+    const connection = { startSession: vi.fn().mockResolvedValue(handle) };
+    const countDocuments = vi.fn().mockResolvedValue(12);
+    const budgeted = new NotificationsService(
+      { countDocuments, findOneAndUpdate: vi.fn().mockReturnValue({ exec: async () => null }) } as never,
+      farmers as never,
+      gateway as never,
+      { get: (key: string) => (key === 'SMS_DAILY_BUDGET' ? 10 : pepper) } as never,
+      fraud as never,
+      connection as never,
+    );
+
+    await budgeted.dispatchDue(new Date('2026-10-23T01:00:00.000Z'));
+
+    expect(fraud.open).toHaveBeenCalledWith(
+      {
+        type: 'sms_budget',
+        severity: 'medium',
+        details: { date: '2026-10-23', count: 12, budget: 10 },
+      },
+      handle,
+    );
+  });
 });
 
 function queuedDoc() {

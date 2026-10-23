@@ -1,4 +1,5 @@
 import { Body, Controller, Headers, Param, Post } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Role } from '../../common/enums/role.enum.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
@@ -11,6 +12,7 @@ export class LocalPickupsController {
   constructor(private readonly pickups: PickupsService) {}
 
   @Roles(Role.LOCAL_ADMIN)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('verify')
   verify(@CurrentPrincipal() principal: Principal, @Body() dto: VerifyPickupDto) {
     return this.pickups.verify(principal, dto);

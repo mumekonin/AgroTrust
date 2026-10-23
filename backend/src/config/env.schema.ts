@@ -22,6 +22,20 @@ export const envSchema = z.object({
   AUTH_PEPPER: z.string().min(32),
   TOTP_ENCRYPTION_KEY: z.string().min(32),
   ARGON2_MAX_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(4),
+
+  SMS_GATEWAY: z.enum(['mock', 'http']).default('mock'),
+  SMS_GATEWAY_URL: z.string().url().optional(),
+  SMS_GATEWAY_KEY: z.string().min(1).optional(),
+  SMS_SENDER_ID: z.string().min(1).max(11).default('AgroTrust'),
+  SMS_DAILY_BUDGET: z.coerce.number().int().positive().optional(),
+}).superRefine((env, ctx) => {
+  if (env.SMS_GATEWAY !== 'http') return;
+  if (!env.SMS_GATEWAY_URL) {
+    ctx.addIssue({ code: 'custom', path: ['SMS_GATEWAY_URL'], message: 'Required when SMS_GATEWAY is http' });
+  }
+  if (!env.SMS_GATEWAY_KEY) {
+    ctx.addIssue({ code: 'custom', path: ['SMS_GATEWAY_KEY'], message: 'Required when SMS_GATEWAY is http' });
+  }
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -84,6 +84,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('login/verify-otp')
   @Header('Cache-Control', 'no-store')
   async verifyOtp(
@@ -103,6 +104,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('login/mfa')
   @Header('Cache-Control', 'no-store')
   async loginMfa(
@@ -208,6 +210,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('pin-reset/request')
   @Header('Cache-Control', 'no-store')
   @HttpCode(HttpStatus.ACCEPTED)
@@ -216,6 +219,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('pin-reset/confirm')
   @Header('Cache-Control', 'no-store')
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -224,6 +228,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('password-reset/request')
   @Header('Cache-Control', 'no-store')
   @HttpCode(HttpStatus.ACCEPTED)
@@ -232,6 +237,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('password-reset/confirm')
   @Header('Cache-Control', 'no-store')
   @HttpCode(HttpStatus.NO_CONTENT)

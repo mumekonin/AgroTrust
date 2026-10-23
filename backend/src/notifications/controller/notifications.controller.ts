@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Headers, Post, Query } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Role } from '../../common/enums/role.enum.js';
 import {
   CurrentPrincipal,
@@ -46,6 +47,7 @@ export class SmsWebhookController {
   constructor(private readonly notifications: NotificationsService) {}
 
   @Public()
+  @SkipThrottle()
   @Post('delivery-reports')
   report(@Body() dto: DeliveryReportDto, @Headers('x-sms-signature') signature?: string) {
     return this.notifications.applyDeliveryReport(dto, signature);

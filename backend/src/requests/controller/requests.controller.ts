@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Headers, Param, Post, Query } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Role } from '../../common/enums/role.enum.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
@@ -17,6 +18,7 @@ export class RequestsController {
   constructor(private readonly requests: RequestsService) {}
 
   @Roles(Role.FARMER)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post()
   submit(
     @CurrentPrincipal() principal: Principal,
@@ -55,6 +57,7 @@ export class LocalRequestsController {
   constructor(private readonly requests: RequestsService) {}
 
   @Roles(Role.LOCAL_ADMIN)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post()
   start(
     @CurrentPrincipal() principal: Principal,
@@ -66,6 +69,7 @@ export class LocalRequestsController {
   }
 
   @Roles(Role.LOCAL_ADMIN)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post(':id/confirm')
   confirm(
     @CurrentPrincipal() principal: Principal,

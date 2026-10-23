@@ -1,14 +1,15 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectModel } from '@nestjs/mongoose';
-import { Types, type ClientSession, type Model } from 'mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { Types, type ClientSession, type Connection, type Model } from 'mongoose';
 import { AppException } from '../../common/errors/app.exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import type { Principal } from '../../common/guards/auth.decorator.js';
 import { normalizeEthiopianPhone } from '../../common/utils/phone.util.js';
 import type { Env } from '../../config/env.schema.js';
 import { FarmersService } from '../../farmers/service/farmers.service.js';
+import { FraudService } from '../../fraud/service/fraud.service.js';
 import {
   toNotificationResponse,
   type NotificationListResponse,
@@ -52,6 +53,8 @@ export class NotificationsService {
     private readonly farmers: FarmersService,
     private readonly gateway: SmsGateway,
     private readonly config: ConfigService<Env, true>,
+    @Optional() private readonly fraud?: FraudService,
+    @Optional() @InjectConnection() private readonly connection?: Connection,
   ) {}
 
   async enqueue(input: EnqueueNotificationInput): Promise<NotificationResponse> {
@@ -131,6 +134,7 @@ export class NotificationsService {
   }
 
   async dispatchDue(now: Date): Promise<number> {
+    await this.alertBudget(now);
     let sent = 0;
     for (let i = 0; i < DISPATCH_BATCH; i += 1) {
       const claimed = await this.claim(now);
@@ -139,6 +143,29 @@ export class NotificationsService {
       if (delivered) sent += 1;
     }
     return sent;
+  }
+
+  private async alertBudget(now: Date): Promise<void> {
+    const budget = this.config.get('SMS_DAILY_BUDGET', { infer: true });
+    const fraud = this.fraud;
+    const connection = this.connection;
+    if (typeof budget !== 'number' || budget <= 0 || !fraud || !connection) return;
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const count = await this.notifications.countDocuments({
+      status: { $in: [NotificationStatus.SENT, NotificationStatus.DELIVERED] },
+      updatedAt: { $gte: start },
+    });
+    if (count < budget) return;
+    const date = start.toISOString().slice(0, 10);
+    if (await fraud.hasOpen('sms_budget', { date })) return;
+    const session = await connection.startSession();
+    try {
+      await session.withTransaction(() =>
+        fraud.open({ type: 'sms_budget', severity: 'medium', details: { date, count, budget } }, session),
+      );
+    } finally {
+      await session.endSession();
+    }
   }
 
   async applyDeliveryReport(
