@@ -126,6 +126,7 @@ export class RequestRequisitionService {
           entity: { type: 'input_request', id: String(doc._id) },
           changes: { requestNo: doc.requestNo, requisitionId },
           requestId: actor.requestId,
+          localCenterId: String(doc.localCenterId),
           session,
         });
       }
@@ -395,6 +396,7 @@ export class RequestRequisitionService {
       entity: { type: 'input_request', id: String(doc._id) },
       changes: { requestNo: doc.requestNo, quantityKg, amountSantim: amount },
       requestId: actor.requestId,
+      localCenterId: String(doc.localCenterId),
       session,
     });
   }
@@ -426,6 +428,7 @@ export class RequestRequisitionService {
       entity: { type: 'input_request', id: String(doc._id) },
       changes: { requestNo: doc.requestNo },
       requestId: actor.requestId,
+      localCenterId: String(doc.localCenterId),
       session,
     });
   }
@@ -479,6 +482,7 @@ export class RequestRequisitionService {
       entity: { type: 'input_request', id: String(doc._id) },
       changes: { requestNo: doc.requestNo, reason },
       requestId: actor.requestId,
+      localCenterId: String(doc.localCenterId),
       session,
     });
   }

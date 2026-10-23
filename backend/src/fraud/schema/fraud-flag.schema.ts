@@ -21,16 +21,28 @@ export class FraudFlag {
   localCenterId?: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId })
+  farmerId?: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId })
+  requestId?: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId })
   distributorId?: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId })
   shipmentId?: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId })
+  paymentId?: Types.ObjectId;
 
   @Prop({ type: Object, required: true })
   details: Record<string, unknown>;
 
   @Prop({ type: String, enum: Object.values(FraudFlagStatus), required: true })
   status: FraudFlagStatus;
+
+  @Prop({ type: Types.ObjectId })
+  resolvedBy?: Types.ObjectId;
 
   createdAt?: Date;
 }
@@ -39,4 +51,5 @@ export type FraudFlagDocument = HydratedDocument<FraudFlag>;
 export const FraudFlagSchema = SchemaFactory.createForClass(FraudFlag);
 
 FraudFlagSchema.index({ status: 1, severity: 1, createdAt: -1 });
+FraudFlagSchema.index({ localCenterId: 1, status: 1, createdAt: -1 });
 FraudFlagSchema.index({ shipmentId: 1 });

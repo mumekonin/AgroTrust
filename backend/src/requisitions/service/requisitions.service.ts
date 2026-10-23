@@ -119,6 +119,7 @@ export class RequisitionsService {
           action: 'REQUISITION_DRAFTED',
           entity: { type: 'requisition', id: String(doc._id) },
           changes: { requisitionNo, requestCount: bundled.requestCount },
+          localCenterId: input.localCenterId,
           session,
         });
         return doc;
@@ -200,6 +201,7 @@ export class RequisitionsService {
         action: 'REQUISITION_SUBMITTED',
         entity: { type: 'requisition', id: String(requisition._id) },
         changes: { requisitionNo: requisition.requisitionNo, requestCount: bundled.requestCount },
+        localCenterId: String(requisition.localCenterId),
         session,
       });
       return updated;
@@ -345,6 +347,7 @@ export class RequisitionsService {
         action: 'REQUISITION_RESPONDED',
         entity: { type: 'requisition', id: String(requisition._id) },
         changes: { decision, reason: input.reason?.trim() },
+        localCenterId: String(requisition.localCenterId),
         session,
       });
       return updated;
@@ -438,6 +441,7 @@ export class RequisitionsService {
         requestCount: totals.requestCount,
         previousCount: requisition.requestCount,
       },
+      localCenterId: String(requisition.localCenterId),
     });
   }
 
@@ -448,6 +452,38 @@ export class RequisitionsService {
       .lean()
       .exec();
     return docs.map((doc) => String(doc._id));
+  }
+
+  async metricLines(): Promise<
+    { distributorId: string; seasonId: string; inputId: string; requestedKg: number; acceptedKg: number; paidKg: number }[]
+  > {
+    const grouped = await this.requisitions
+      .aggregate<{
+        _id: { distributorId: Types.ObjectId; seasonId: Types.ObjectId; inputId: Types.ObjectId };
+        requestedKg: number;
+        acceptedKg: number;
+        paidKg: number;
+      }>([
+        { $match: { status: { $nin: [RequisitionStatus.DRAFT, RequisitionStatus.CANCELLED] } } },
+        { $unwind: '$lines' },
+        {
+          $group: {
+            _id: { distributorId: '$distributorId', seasonId: '$seasonId', inputId: '$lines.inputId' },
+            requestedKg: { $sum: '$lines.requestedKg' },
+            acceptedKg: { $sum: '$lines.acceptedKg' },
+            paidKg: { $sum: '$lines.paidKg' },
+          },
+        },
+      ])
+      .exec();
+    return grouped.map((row) => ({
+      distributorId: String(row._id.distributorId),
+      seasonId: String(row._id.seasonId),
+      inputId: String(row._id.inputId),
+      requestedKg: row.requestedKg,
+      acceptedKg: row.acceptedKg,
+      paidKg: row.paidKg,
+    }));
   }
 
   async readForDispatch(id: string): Promise<{

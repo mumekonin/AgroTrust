@@ -112,6 +112,7 @@ export class PaymentsService {
           entity: { type: 'payment', id: String(doc._id) },
           changes: { paymentNo: doc.paymentNo, requestId: request.id, amountSantim },
           requestId: principal.requestId,
+          localCenterId: request.localCenterId,
           session,
         });
         await this.notifyConfirmed(request, amountSantim, session);

@@ -207,6 +207,52 @@ export class StockService {
     }));
   }
 
+  async balanceLines(): Promise<{ localCenterId: string; inputId: string; seasonId: string; onHandKg: number }[]> {
+    const docs = await this.stock.find().select({ localCenterId: 1, inputId: 1, seasonId: 1, onHandKg: 1 }).lean().exec();
+    return docs.map((doc) => ({
+      localCenterId: String(doc.localCenterId),
+      inputId: String(doc.inputId),
+      seasonId: String(doc.seasonId),
+      onHandKg: doc.onHandKg,
+    }));
+  }
+
+  async driftLines(): Promise<{ localCenterId: string; inputId: string; seasonId: string; onHandKg: number; ledgerKg: number }[]> {
+    const grouped = await this.movements
+      .aggregate<{ _id: { localCenterId: Types.ObjectId; inputId: Types.ObjectId; seasonId: Types.ObjectId }; ledgerKg: number }>([
+        {
+          $group: {
+            _id: { localCenterId: '$localCenterId', inputId: '$inputId', seasonId: '$seasonId' },
+            ledgerKg: {
+              $sum: {
+                $cond: [
+                  { $in: ['$type', [StockMovementType.RECEIPT, StockMovementType.ADJUSTMENT]] },
+                  '$qtyKg',
+                  {
+                    $cond: [
+                      { $in: ['$type', [StockMovementType.ISSUE, StockMovementType.RETURN_TO_DISTRIBUTOR]] },
+                      { $multiply: ['$qtyKg', -1] },
+                      0,
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ])
+      .exec();
+    return compareLedger(
+      await this.balanceLines(),
+      grouped.map((row) => ({
+        localCenterId: String(row._id.localCenterId),
+        inputId: String(row._id.inputId),
+        seasonId: String(row._id.seasonId),
+        ledgerKg: row.ledgerKg,
+      })),
+    );
+  }
+
   private async append(
     type: StockMovementType,
     input: {
@@ -246,4 +292,26 @@ export class StockService {
 function objectId(id: string, message: string): Types.ObjectId {
   if (!Types.ObjectId.isValid(id)) throw new AppException(ErrorCode.VALIDATION_FAILED, message);
   return new Types.ObjectId(id);
+}
+
+export function compareLedger(
+  balances: { localCenterId: string; inputId: string; seasonId: string; onHandKg: number }[],
+  ledger: { localCenterId: string; inputId: string; seasonId: string; ledgerKg: number }[],
+): { localCenterId: string; inputId: string; seasonId: string; onHandKg: number; ledgerKg: number }[] {
+  const keyOf = (row: { localCenterId: string; inputId: string; seasonId: string }) =>
+    `${row.localCenterId}|${row.inputId}|${row.seasonId}`;
+  const byKey = new Map(ledger.map((row) => [keyOf(row), row.ledgerKg]));
+  const seen = new Set<string>();
+  const drifts: { localCenterId: string; inputId: string; seasonId: string; onHandKg: number; ledgerKg: number }[] = [];
+  for (const row of balances) {
+    const key = keyOf(row);
+    seen.add(key);
+    const ledgerKg = byKey.get(key) ?? 0;
+    if (ledgerKg !== row.onHandKg) drifts.push({ ...row, ledgerKg });
+  }
+  for (const row of ledger) {
+    const key = keyOf(row);
+    if (!seen.has(key) && row.ledgerKg !== 0) drifts.push({ ...row, onHandKg: 0 });
+  }
+  return drifts;
 }

@@ -116,6 +116,7 @@ export class ShipmentsService {
           entity: { type: 'shipment', id: String(doc._id) },
           changes: { shipmentNo: doc.shipmentNo, requisitionId: requisition.id },
           requestId: actor.requestId,
+          localCenterId: requisition.localCenterId,
           session,
         });
         return doc;
@@ -175,6 +176,7 @@ export class ShipmentsService {
       entity: { type: 'shipment', id: String(shipment._id) },
       changes: { shipmentNo: shipment.shipmentNo, etaAt: input.etaAt },
       requestId: principal.requestId,
+      localCenterId: String(shipment.localCenterId),
     });
     return toShipmentResponse(updated);
   }
@@ -271,6 +273,7 @@ export class ShipmentsService {
         entity: { type: 'shipment', id: String(shipment._id) },
         changes: { shipmentNo: shipment.shipmentNo, status, discrepancy: differs },
         requestId: actor.requestId,
+        localCenterId: String(shipment.localCenterId),
         session,
       });
       return updated;
@@ -318,6 +321,7 @@ export class ShipmentsService {
       entity: { type: 'shipment', id: String(shipment._id) },
       changes: { shipmentNo: shipment.shipmentNo, resolution: input.resolution.trim() },
       requestId: principal.requestId,
+      localCenterId: String(shipment.localCenterId),
     });
     return toShipmentResponse(updated);
   }
@@ -332,6 +336,69 @@ export class ShipmentsService {
     if (!allocation) return undefined;
     const shipment = await this.shipments.findById(allocation.shipmentId).select({ receivedBy: 1 }).lean().exec();
     return shipment?.receivedBy ? String(shipment.receivedBy) : undefined;
+  }
+
+  async metricLines(): Promise<
+    { localCenterId: string; distributorId: string; seasonId: string; inputId: string; dispatchedKg: number; receivedKg: number }[]
+  > {
+    const grouped = await this.shipments
+      .aggregate<{
+        _id: { localCenterId: Types.ObjectId; distributorId: Types.ObjectId; seasonId: Types.ObjectId; inputId: Types.ObjectId };
+        dispatchedKg: number;
+        receivedKg: number;
+      }>([
+        { $match: { status: { $ne: ShipmentStatus.CANCELLED } } },
+        {
+          $project: {
+            localCenterId: 1,
+            distributorId: 1,
+            seasonId: 1,
+            lines: 1,
+            receivedLines: {
+              $cond: [
+                { $in: ['$status', [ShipmentStatus.RECEIVED, ShipmentStatus.RECEIVED_WITH_DISCREPANCY]] },
+                '$receivedLines',
+                [],
+              ],
+            },
+          },
+        },
+        {
+          $project: {
+            localCenterId: 1,
+            distributorId: 1,
+            seasonId: 1,
+            parts: {
+              $concatArrays: [
+                { $map: { input: '$lines', as: 'line', in: { inputId: '$$line.inputId', dispatchedKg: '$$line.qtyKg', receivedKg: 0 } } },
+                { $map: { input: '$receivedLines', as: 'line', in: { inputId: '$$line.inputId', dispatchedKg: 0, receivedKg: '$$line.qtyKg' } } },
+              ],
+            },
+          },
+        },
+        { $unwind: '$parts' },
+        {
+          $group: {
+            _id: {
+              localCenterId: '$localCenterId',
+              distributorId: '$distributorId',
+              seasonId: '$seasonId',
+              inputId: '$parts.inputId',
+            },
+            dispatchedKg: { $sum: '$parts.dispatchedKg' },
+            receivedKg: { $sum: '$parts.receivedKg' },
+          },
+        },
+      ])
+      .exec();
+    return grouped.map((row) => ({
+      localCenterId: String(row._id.localCenterId),
+      distributorId: String(row._id.distributorId),
+      seasonId: String(row._id.seasonId),
+      inputId: String(row._id.inputId),
+      dispatchedKg: row.dispatchedKg,
+      receivedKg: row.receivedKg,
+    }));
   }
 
   async processDue(): Promise<void> {

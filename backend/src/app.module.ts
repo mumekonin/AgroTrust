@@ -23,6 +23,7 @@ import { PaymentsModule } from './payments/payments.module.js';
 import { PickupsModule } from './pickups/pickups.module.js';
 import { RequisitionsModule } from './requisitions/requisitions.module.js';
 import { ShipmentsModule } from './shipments/shipments.module.js';
+import { AnalyticsModule } from './analytics/analytics.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -49,6 +50,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     PaymentsModule,
     ShipmentsModule,
     PickupsModule,
+    AnalyticsModule,
     ObserveModule.forRoot({
       appKey: 'YOUR_APP_KEY',
       appSecret: 'YOUR_APP_SECRET',

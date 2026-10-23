@@ -102,6 +102,7 @@ export class RequestPickupService {
       entity: { type: 'input_request', id: view.id },
       changes: { requestNo: view.requestNo, quantityKg },
       requestId: actor.requestId,
+      localCenterId: view.localCenterId,
       session,
     });
     return view;
@@ -140,6 +141,7 @@ export class RequestPickupService {
       entity: { type: 'input_request', id: String(updated._id) },
       changes: { requestNo: updated.requestNo, reason: UNCOLLECTED },
       requestId: actor.requestId,
+      localCenterId: String(updated.localCenterId),
       session,
     });
     return toPickup(updated);

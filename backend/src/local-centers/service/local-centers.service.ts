@@ -67,6 +67,15 @@ export class LocalCentersService {
     return center.name;
   }
 
+  async places(): Promise<{ id: string; regionId: string; woredaId: string }[]> {
+    const docs = await this.centers.find().select({ geo: 1 }).lean().exec();
+    return docs.map((doc) => ({
+      id: String(doc._id),
+      regionId: String(doc.geo.regionId),
+      woredaId: String(doc.geo.woredaId),
+    }));
+  }
+
   async idsInScope(principal: Principal): Promise<string[]> {
     const docs = await this.centers.find(this.scopeFilter(principal)).select('_id').lean().exec();
     return docs.map((doc) => String(doc._id));

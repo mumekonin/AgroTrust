@@ -78,3 +78,18 @@ StockMovementSchema.index({ localCenterId: 1, inputId: 1, seasonId: 1, at: -1 })
 StockMovementSchema.index({ requestId: 1 });
 StockMovementSchema.index({ shipmentId: 1 });
 StockMovementSchema.index({ batchId: 1 });
+
+for (const hook of [
+  'updateOne',
+  'updateMany',
+  'replaceOne',
+  'deleteOne',
+  'deleteMany',
+  'findOneAndUpdate',
+  'findOneAndDelete',
+  'findOneAndReplace',
+] as const) {
+  StockMovementSchema.pre(hook, () => {
+    throw new Error('stock_movements are insert-only');
+  });
+}

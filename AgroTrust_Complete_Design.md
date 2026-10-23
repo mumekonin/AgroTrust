@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Version** | 3 (design complete for the pilot scope, nothing implemented yet) |
-| **Stack** | React PWA · NestJS · MongoDB · JWT authentication · SMS gateway · Mobile-money/bank payment gateway |
+| **Stack** | React PWA · NestJS · MongoDB · JWT authentication · SMS gateway · Bank-slip payment recorded by the local admin |
 | **Scope** | Pilot in one woreda (about 20,000 farmers), designed to scale to a region and then the country |
 
 This single document combines the project overview, the backend and database design, the authentication design and the design decisions. Cross-references such as `§2.9.6` mean *Part 2, section 9.6*.
@@ -13,7 +13,7 @@ This single document combines the project overview, the backend and database des
 ### What changed in v3
 1. Authentication is now **our own JWT system** (PIN/password, MFA, revocable sessions). Fayda is no longer used for login. Identity is verified **in person** by the local admin against the government registry.
 2. All open questions from the earlier draft are **answered** in Part 4.
-3. A **payment** step was added: after the distributor accepts and before dispatch, paid directly to the supplier, never in cash to the local admin.
+3. A **payment** step was added: after the distributor accepts and before dispatch, the farmer pays the supplier by bank. The local admin records the bank slip. The admin never takes the cash.
 4. Requisition processing is **chunked**, and one requisition can have **several shipments**.
 5. Distributors are **assigned by rule**, and entitlements come from **versioned allocation rules**.
 
@@ -112,7 +112,7 @@ AgroTrust enables **verified, direct access** to agricultural inputs. It provide
 3. **Approve:** the local admin checks the request against the farmer's information and entitlement.
 4. **Requisition:** the local admin sends the approved requests to the **assigned distributor** (government or private).
 5. **Distributor check:** the distributor verifies the information and accepts, adjusts or declines.
-6. **Pay:** the farmer pays by mobile money or bank directly to the supplier account.
+6. **Pay:** the farmer pays the supplier by bank, then brings the slip to the local admin, who checks it and records the payment.
 7. **Dispatch:** the distributor sends the paid inputs to the local center.
 8. **Receive:** the local admin confirms what arrived and the farmer is told where and when to collect.
 9. **Hand over:** the farmer collects the inputs using a one-time code.
@@ -157,7 +157,7 @@ Details: Part 3.
 | Database | MongoDB (replica set, transactions) |
 | Authentication | JWT (EdDSA) + refresh rotation, Argon2id, TOTP |
 | Notifications | SMS gateway (Ethio Telecom or licensed aggregator) |
-| Payments | Mobile money / bank gateway |
+| Payments | Bank slip recorded by the local admin |
 | Ops | Docker, CI/CD, Prometheus, in-country hosting |
 
 ---
@@ -201,7 +201,7 @@ Details: Part 3.
 | 2 | **Review:** local admin checks the farmer's information and the request against their allocation, then approves or rejects | Local Admin | `APPROVED` or `REJECTED` (reason required) | Approved / Rejected + reason |
 | 3 | **Requisition:** local admin bundles approved requests into one consolidated order to the **assigned distributor** | Local Admin | Requests → `REQUISITIONED`. Requisition `SUBMITTED` | None |
 | 4 | **Distributor check:** distributor verifies the requisition and accepts, partially accepts or declines | Distributor | Requests → `ACCEPTED` (payment due) or `WAITLISTED`/`DECLINED`. Quota released for declined | Accepted + amount, payment reference and deadline / Declined + reason |
-| 4b | **Payment:** farmer pays by mobile money or bank to the distributor/government account | Farmer + payment provider | Webhook confirms → request `PAID` | Payment confirmed |
+| 4b | **Payment:** farmer pays the supplier by bank and brings the slip to the local admin | Farmer + Local Admin | Admin confirms the slip → request `PAID` | Payment confirmed |
 | 5 | **Dispatch:** distributor ships **paid** quantities to the local center, recording lots, quantities and ETA | Distributor | Shipment `IN_TRANSIT`. Covered requests → `IN_TRANSIT` | **"On the way", with ETA** |
 | 6 | **Receipt:** local admin confirms what actually arrived | Local Admin | Stock at the center increases. Covered requests → `READY_FOR_PICKUP`. Pickup code issued. Differences logged as a discrepancy | **"Arrived at [center], collect by [date], code [XXXXXXXX]"** |
 | 7 | **Handover:** farmer collects. Local admin verifies the code and identity, then hands over | Farmer / Local Admin | Request `COMPLETED`. Stock and quota counters updated | Collection confirmed |
@@ -211,7 +211,6 @@ sequenceDiagram
   participant F as Farmer
   participant A as Local Admin
   participant D as Distributor
-  participant P as Payment Provider
   participant S as System + SMS
   F->>S: 1. Submit input request
   S->>A: Request appears in review queue
@@ -221,8 +220,8 @@ sequenceDiagram
   S->>D: Requisition received
   D->>S: 4. Check information, accept / adjust / decline
   S-->>F: SMS: accepted, amount due, payment reference
-  F->>P: 4b. Pay (mobile money / bank)
-  P->>S: Payment webhook (signed)
+  F->>A: 4b. Bring the bank slip
+  A->>S: Confirm the slip (step-up)
   S-->>F: SMS: payment confirmed
   D->>S: 5. Dispatch paid quantities (lots, ETA)
   S-->>F: SMS: on the way, ETA
@@ -258,7 +257,7 @@ The local admin is a powerful human checkpoint. Without controls they would beco
 
 - **Farmer-held proof:** goods are handed over only against the farmer's one-time pickup code (sent by SMS) and identity check.
 - **Assisted requests need the farmer's consent:** the farmer confirms with an SMS OTP bound to the exact items and quantities.
-- **No money handling:** payments bypass the local admin entirely.
+- **No cash handling:** the farmer pays the supplier's bank account. The local admin only checks the slip and records it. The admin never receives the money.
 - **Reconciliation:** dispatched vs. received vs. handed-over quantities (and payments vs. goods) are compared. Any gap raises a flag.
 - **Visibility:** the farmer sees every step by SMS. Distributor and admins see every step in dashboards.
 - **Separation of duties:** two staff per center, with a flag when one person receives and hands over the same shipment.
@@ -282,8 +281,7 @@ An account proves **who is logging in**. It does **not** prove that the person i
  React PWA ──HTTPS──► NestJS API (REST, /api/v1) ──► MongoDB (3-node replica set)
  (Farmer / Local Admin /     │   ▲                      │
   Distributor / Admin)       │   └── Worker: scheduled jobs, SMS outbox, chunked processing
-                             ├──► SMS gateway (send, delivery reports)
-                             └──► Payment gateway (initiate, webhook, statements)
+                             └──► SMS gateway (send, delivery reports)
 ```
 
 **Runtime requirements**
@@ -308,7 +306,7 @@ An account proves **who is logging in**. It does **not** prove that the person i
 | `distributors` | Distributor organizations, staff, and per-season center assignments |
 | `requests` | Farmer input requests and their review |
 | `requisitions` | Consolidated orders from a local center to a distributor, chunked processing |
-| `payments` | Payment initiation, webhooks, reconciliation, refunds |
+| `payments` | Bank-slip confirmation by the local admin, then refunds |
 | `shipments` | Dispatch, transport, receipt and discrepancies (multiple per requisition) |
 | `inventory` | Batches, stock per center, append-only stock ledger |
 | `pickups` | Pickup-code verification and handover |
@@ -498,9 +496,10 @@ Manual corrections are audited `allocation_adjustments` entries (reason required
 Individual requests point to their requisition through `input_requests.requisitionId`, so the requisition document stays small.
 
 ##### `payments`
-`{ paymentNo, requestId, farmerId, amountSantim, provider: telebirr|cbe_birr|bank|credit, providerRef, status: pending|confirmed|failed|refunded|credit, idempotencyKey, initiatedAt, confirmedAt, rawEventRef, reconciledAt }`
-**Indexes:** unique `{ paymentNo: 1 }`; unique `{ provider: 1, providerRef: 1 }`; `{ requestId: 1 }`; `{ status: 1, initiatedAt: 1 }`.
-Webhooks are signature-verified and idempotent. A daily job reconciles against provider statements.
+`{ paymentNo, requestId, farmerId, amountSantim, provider: bank, providerRef, status: confirmed|refunded|credit, idempotencyKey, initiatedAt, confirmedAt }`
+`providerRef` is the bank slip number the local admin typed. `paymentNo` is derived from the request number (`RQ-26-000123` → `PY-26-000123`).
+**Indexes:** unique `{ paymentNo: 1 }`; unique `{ provider: 1, providerRef: 1 }`; unique `{ idempotencyKey: 1 }`; `{ requestId: 1 }`; `{ status: 1, initiatedAt: 1 }`.
+The same slip number cannot confirm two requests. A repeated `Idempotency-Key` returns the original payment.
 
 ##### `batches`: supply lots (traceability origin)
 `{ lotNumber, distributorId, inputId, seasonId, quantityKg, source, importRef?, documents[], createdBy }`
@@ -597,11 +596,11 @@ Each step uses **MongoDB transactions** with retry on `TransientTransactionError
 - Farmers get an SMS with the final quantity, amount, payment reference and deadline, or the reason.
 
 #### 2.9.4b Payment (step 4b)
-1. The farmer pays via the payment gateway using the payment reference (`payments` row `pending`, idempotent).
-2. The **signed webhook** (idempotent on `providerRef`) marks the payment `confirmed`, the request `PAID`, writes the audit entry and queues the SMS.
-3. Unpaid at `paymentDueAt` → request `EXPIRED` (`UNPAID`), quota released, SMS sent. Late payments of expired requests go to a manual refund queue.
-4. If a paid request cannot later be supplied (shortage), it becomes `REFUNDED` (refund or credit, farmer's choice).
-5. Daily reconciliation: provider statement vs. `payments`. Differences raise `fraud_flags`.
+1. The farmer pays the supplier's bank account using the payment reference, then brings the bank slip to the local admin of that center.
+2. The local admin confirms the slip (`POST /local-admin/input-requests/:id/confirm-payment`, step-up, `Idempotency-Key`). The amount is the accepted quantity times the snapshotted price minus subsidy, in santim. In one transaction the service writes the `payments` row `confirmed`, sets the request `PAID` and `paidAt`, adds the accepted kilograms to `requisitions.lines[].paidKg`, writes the audit entry and queues the SMS.
+3. Only an `ACCEPTED` request whose `paymentDueAt` is still in the future can be confirmed. A repeated key or the same slip on the same request returns the original payment.
+4. Unpaid at `paymentDueAt` → request `EXPIRED` (`UNPAID`), the still-reserved kilograms are released, and the farmer gets an SMS. A slip for an expired request is rejected.
+5. If a paid request cannot later be supplied (shortage), it becomes `REFUNDED` (refund or credit, farmer's choice).
 
 #### 2.9.5 Dispatch (step 5)
 Distributor creates a `shipment` from existing `batches`, with ETA and transport details, covering **only `PAID` requests** (written to `shipment_allocations`). A requisition can have **many shipments**. Shipped quantity cannot exceed paid quantity (conditional update). Covered requests → `IN_TRANSIT` (chunked), and farmers get the "on the way" SMS.
@@ -692,7 +691,6 @@ All endpoints require authentication unless marked public. Errors follow **RFC 7
 | POST | `/input-requests` | Submit a request (**`Idempotency-Key` required**) |
 | GET | `/input-requests/me`, `/input-requests/:id` | History and live status |
 | POST | `/input-requests/:id/cancel` | Cancel before payment |
-| POST | `/input-requests/:id/pay` | Start payment (returns provider instructions/redirect) |
 | GET | `/me/notifications` | Messages sent to the farmer |
 
 #### Local Admin
@@ -705,6 +703,7 @@ All endpoints require authentication unless marked public. Errors follow **RFC 7
 | POST | `/local-admin/input-requests/:id/confirm` | Submit the farmer's OTP to confirm consent |
 | GET | `/local-admin/input-requests?status=SUBMITTED` | Review queue |
 | POST | `/local-admin/input-requests/:id/approve`, `/reject` | Review (reason required to reject) |
+| POST | `/local-admin/input-requests/:id/confirm-payment` | Confirm the bank slip (step-up, `Idempotency-Key`) |
 | POST | `/local-admin/requisitions` | Create from approved requests (supports preview, step-up) |
 | POST | `/local-admin/requisitions/:id/submit` | Send to the assigned distributor |
 | GET | `/local-admin/shipments?status=IN_TRANSIT` | Incoming shipments |
@@ -738,7 +737,7 @@ All endpoints require authentication unless marked public. Errors follow **RFC 7
 | GET | `/admin/fraud-flags`, `/admin/audit-logs`, `/admin/notifications`, `/admin/payments` | Oversight |
 
 #### Webhooks (public, signature-verified, idempotent)
-`POST /webhooks/sms/delivery-reports`, `POST /webhooks/payments/:provider`.
+`POST /webhooks/sms/delivery-reports`. Payment has no webhook. The local admin confirms the bank slip.
 
 #### Health
 `GET /health/live`, `GET /health/ready`.
@@ -792,11 +791,10 @@ Flags go to `fraud_flags` for human review. Nothing is auto-blocked in v1.
 | Chunk processor | every 30 s | Resume `processing` cursors for requisitions and shipments |
 | Stale review alert | hourly | Escalate `SUBMITTED` requests untouched past an SLA |
 | Requisition reminder | hourly | Nudge distributors for unanswered requisitions |
-| Payment reminder and expiry | hourly | Reminders, then `ACCEPTED → EXPIRED (UNPAID)` |
+| Payment reminder and expiry | hourly | One reminder 2 days before the deadline, then `ACCEPTED → EXPIRED (UNPAID)` |
 | Overdue shipment alert | every 30 min | Shipments past `etaAt` |
 | Pickup reminder | hourly | SMS at day 7 and day 12 |
 | Expire uncollected requests | hourly | `READY_FOR_PICKUP → EXPIRED`, release counters, offer to waitlist |
-| Payment reconciliation | daily | Provider statement vs. `payments` |
 | Ledger-vs-stock verification | nightly | Recompute stock, flag drift |
 | Build `daily_snapshots` | nightly | Feed dashboards |
 | Audit chain verification and digest | daily | Detect tampering |
@@ -823,8 +821,8 @@ Jobs take a **DB-backed lock** so that running multiple instances does not dupli
 | Level | Focus |
 |---|---|
 | Unit | Allocation rules, priority policies, FIFO acceptance and earmarking, state machines, hash chain, templates, Argon2/PIN policy, OTP payload binding |
-| Integration | Services against MongoDB (in-memory replica set), including transactions, the outbox, chunk resume after a simulated crash, and payment webhooks (duplicate and out-of-order) |
-| Concurrency | Parallel requests against one farmer's quota. Parallel receipts and handovers against the same stock. Duplicate payment webhooks. Neither may over-allocate or double-count |
+| Integration | Services against MongoDB (in-memory replica set), including transactions, the outbox, chunk resume after a simulated crash, and a repeated payment confirmation |
+| Concurrency | Parallel requests against one farmer's quota. Parallel receipts and handovers against the same stock. Two admins confirming the same request. Neither may over-allocate or double-count |
 | Auth/security | Token tampering, `alg` confusion, refresh reuse, role downgrade with a live token, brute force, enumeration timing, authorization matrix (role × scope × endpoint), distributor data-hiding, injection and rate-limit tests |
 | E2E | Activation → login → request → approve → requisition → accept → pay → dispatch → receive → handover, asserting the SMS and audit entry at each step |
 | Load | Season-open login burst, peak request submission (targets in §4.B.5), SMS backlog |
@@ -863,7 +861,7 @@ All questions that were open in v2 are answered in **Part 4, §4.A**. Summary:
 5. **Notifications:** outbox, templates and a mock gateway first, so every later step can emit SMS.
 6. **Allocations** (rules and generation) and the **request → review** flow (steps 1-2).
 7. **Requisitions and distributor response** (steps 3-4) with chunked processing.
-8. **Payments** (step 4b) with a mock gateway first, then the real provider.
+8. **Payments** (step 4b): the local admin confirms the bank slip. No bank gateway.
 9. **Inventory, shipments and receipt** (steps 5-6), multiple shipments.
 10. **Pickups and handover** (step 7), plus expiry and waitlist.
 11. **Audit chain** (wired in from step 2, hardened here), **fraud flags**, **analytics snapshots**.
@@ -1089,7 +1087,7 @@ Created by a one-time CLI seed (`npm run seed:first-admin`), which prints a one-
 `POST /auth/step-up` with `{ password | pin, code }` (staff: password + TOTP; farmers: PIN + SMS OTP if they perform a protected action). On success `sessions.stepUpUntil = now + 5 min`. The `StepUpGuard` checks it.
 
 **Protected actions** (staff):
-- Create or submit requisition, respond to requisition (distributor)
+- Create or submit requisition, respond to requisition (distributor), confirm a bank-slip payment
 - Confirm shipment receipt
 - Stock adjustment, any override (handover without code)
 - Price, season or allocation-rule changes
@@ -1151,6 +1149,7 @@ Request → ThrottlerGuard
 | Submit / cancel request | ✅ self | ✅ assisted (center) | – | – | – | – |
 | Verify/link farmers, issue activation codes | – | ✅ center | – | ✅ region | ✅ | – |
 | Approve/reject requests | – | ✅ center | – | – | – | – |
+| Confirm bank-slip payment | – | ✅ center (step-up) | – | – | – | – |
 | Create/submit requisition | – | ✅ center (step-up) | – | – | – | – |
 | Respond to requisition | – | – | ✅ own org (step-up) | – | – | – |
 | Create batches/shipments | – | – | ✅ own org | – | – | – |
@@ -1312,8 +1311,8 @@ Not part of the core system. If Fayda access becomes available, it can be added 
 
 New flow addition (step 4b):
 - After the distributor accepts (step 4), the farmer receives an SMS with the **amount due, a payment reference and a deadline (7 days, configurable)**.
-- Payment methods: **mobile money (Telebirr or similar)**, **bank/agent deposit** with the payment reference. The money goes to the **distributor's or government's account**, not through the local admin. Providers are behind a `PaymentGateway` interface.
-- A signed **payment webhook** (idempotent) marks the request `PAID`. A daily reconciliation job compares provider statements with our records.
+- The farmer pays the **distributor's or government's bank account** and brings the slip to the local admin. The admin checks the slip and records it. The admin never takes the cash. There is no payment gateway in this version.
+- Confirming the slip (idempotent on the `Idempotency-Key`, and the slip number cannot be reused) marks the request `PAID`.
 - The distributor dispatches **only paid quantities**. Requests unpaid at the deadline become `EXPIRED` (reason `UNPAID`), the quota is released and the farmer gets an SMS.
 - **Subsidy and credit:** each request line stores `unitPriceSantimPerKg` (official), `subsidySantimPerKg` and the farmer's `payableSantim`. Cooperative or input credit (a common practice) is a Phase 2 option: a `PAYMENT_WAIVED_CREDIT` method with a guarantor record. The data model already allows it.
 - **Refunds:** if a shipment is short and a paid request cannot be covered, the payment is refunded to the original method or kept as a credit for re-shipment (the farmer chooses by SMS reply or at the center).
@@ -1410,8 +1409,8 @@ SUBMITTED ─► APPROVED ─► REQUISITIONED ─► ACCEPTED ─► PAID ─�
 
 #### 4.B.2 New / changed collections
 
-`payments`: `{ paymentNo, requestId, farmerId, amountSantim, provider, providerRef, status: pending|confirmed|failed|refunded|credit, idempotencyKey, initiatedAt, confirmedAt, rawEventRef, reconciledAt }`
-**Indexes:** unique `{ paymentNo: 1 }`; unique `{ provider: 1, providerRef: 1 }`; `{ requestId: 1 }`; `{ status: 1, initiatedAt: 1 }`.
+`payments`: `{ paymentNo, requestId, farmerId, amountSantim, provider: bank, providerRef, status: confirmed|refunded|credit, idempotencyKey, initiatedAt, confirmedAt }`
+**Indexes:** unique `{ paymentNo: 1 }`; unique `{ provider: 1, providerRef: 1 }`; unique `{ idempotencyKey: 1 }`; `{ requestId: 1 }`; `{ status: 1, initiatedAt: 1 }`.
 
 `distributor_assignments`, `allocation_rules`, `allocation_adjustments` as described above.
 

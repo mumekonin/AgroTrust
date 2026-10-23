@@ -270,6 +270,7 @@ export class RequestsService {
         action: 'REQUEST_CANCELLED',
         entity: { type: 'input_request', id: String(request._id) },
         changes: { requestNo: request.requestNo },
+        localCenterId: String(request.localCenterId),
         session,
       });
       return updated;
@@ -331,6 +332,7 @@ export class RequestsService {
         action: status === RequestStatus.APPROVED ? 'REQUEST_APPROVED' : 'REQUEST_REJECTED',
         entity: { type: 'input_request', id: String(request._id) },
         changes: { requestNo: request.requestNo, reason },
+        localCenterId: String(request.localCenterId),
         session,
       });
       await this.notifications.enqueue({
@@ -426,6 +428,7 @@ export class RequestsService {
           action: 'REQUEST_SUBMITTED',
           entity: { type: 'input_request', id: String(doc._id) },
           changes: { requestNo, channel: input.channel },
+          localCenterId: input.farmer.localCenterId,
           session,
         });
         await this.notifications.enqueue({

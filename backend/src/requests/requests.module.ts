@@ -11,6 +11,7 @@ import { SeasonsModule } from '../seasons/seasons.module.js';
 import { UsersModule } from '../users/users.module.js';
 import { LocalRequestsController, RequestsController } from './controller/requests.controller.js';
 import { InputRequest, InputRequestSchema, RequestCounter, RequestCounterSchema } from './schema/input-request.schema.js';
+import { RequestMetricsService } from './service/request-metrics.service.js';
 import { RequestPaymentService } from './service/request-payment.service.js';
 import { RequestPickupService } from './service/request-pickup.service.js';
 import { RequestRequisitionService } from './service/request-requisition.service.js';
@@ -34,7 +35,21 @@ import { RequestsService } from './service/requests.service.js';
     ]),
   ],
   controllers: [RequestsController, LocalRequestsController],
-  providers: [RequestsService, RequestRequisitionService, RequestPaymentService, RequestShipmentService, RequestPickupService],
-  exports: [RequestsService, RequestRequisitionService, RequestPaymentService, RequestShipmentService, RequestPickupService],
+  providers: [
+    RequestsService,
+    RequestRequisitionService,
+    RequestPaymentService,
+    RequestShipmentService,
+    RequestPickupService,
+    RequestMetricsService,
+  ],
+  exports: [
+    RequestsService,
+    RequestRequisitionService,
+    RequestPaymentService,
+    RequestShipmentService,
+    RequestPickupService,
+    RequestMetricsService,
+  ],
 })
 export class RequestsModule {}

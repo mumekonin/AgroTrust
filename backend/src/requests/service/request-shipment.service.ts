@@ -105,6 +105,7 @@ export class RequestShipmentService {
       entity: { type: 'input_request', id: String(updated._id) },
       changes: { requestNo: updated.requestNo },
       requestId: actor.requestId,
+      localCenterId: String(updated.localCenterId),
       session,
     });
     return true;
@@ -151,6 +152,7 @@ export class RequestShipmentService {
       entity: { type: 'input_request', id: String(updated._id) },
       changes: { requestNo: updated.requestNo, pickupExpiresAt: expiresAt.toISOString() },
       requestId: actor.requestId,
+      localCenterId: String(updated.localCenterId),
       session,
     });
     return true;

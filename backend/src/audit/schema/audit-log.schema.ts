@@ -27,7 +27,7 @@ export class AuditEntity {
 }
 export const AuditEntitySchema = SchemaFactory.createForClass(AuditEntity);
 
-/** §2.8.3 audit_logs. Insert-only. The chain is hardened in a later module. */
+/** §2.8.3 audit_logs. Insert-only. A daily job verifies the chain. */
 @Schema({ collection: 'audit_logs' })
 export class AuditLog {
   @Prop({ type: Number, required: true })
@@ -51,6 +51,9 @@ export class AuditLog {
   @Prop({ type: String })
   requestId?: string;
 
+  @Prop({ type: String })
+  localCenterId?: string;
+
   @Prop({ type: String, required: true })
   prevHash: string;
 
@@ -64,6 +67,22 @@ export const AuditLogSchema = SchemaFactory.createForClass(AuditLog);
 AuditLogSchema.index({ seq: 1 }, { unique: true });
 AuditLogSchema.index({ 'entity.type': 1, 'entity.id': 1, at: -1 });
 AuditLogSchema.index({ 'actor.userId': 1, at: -1 });
+AuditLogSchema.index({ localCenterId: 1, at: -1 });
+
+for (const hook of [
+  'updateOne',
+  'updateMany',
+  'replaceOne',
+  'deleteOne',
+  'deleteMany',
+  'findOneAndUpdate',
+  'findOneAndDelete',
+  'findOneAndReplace',
+] as const) {
+  AuditLogSchema.pre(hook, () => {
+    throw new Error('audit_logs are insert-only');
+  });
+}
 
 @Schema({ collection: 'audit_counters' })
 export class AuditCounter {
@@ -78,3 +97,26 @@ export type AuditCounterDocument = HydratedDocument<AuditCounter>;
 export const AuditCounterSchema = SchemaFactory.createForClass(AuditCounter);
 
 AuditCounterSchema.index({ key: 1 }, { unique: true });
+
+@Schema({ collection: 'audit_digests' })
+export class AuditDigest {
+  @Prop({ type: String, required: true })
+  date: string;
+
+  @Prop({ type: Number, required: true })
+  seq: number;
+
+  @Prop({ type: String, required: true })
+  hash: string;
+
+  @Prop({ type: String, required: true })
+  signature: string;
+
+  @Prop({ type: Boolean, required: true })
+  intact: boolean;
+}
+
+export type AuditDigestDocument = HydratedDocument<AuditDigest>;
+export const AuditDigestSchema = SchemaFactory.createForClass(AuditDigest);
+
+AuditDigestSchema.index({ date: 1 }, { unique: true });

@@ -204,6 +204,7 @@ export class RequestPaymentService {
         entity: { type: 'input_request', id: String(doc._id) },
         changes: { requestNo: doc.requestNo, reason: UNPAID_REASON },
         requestId: actor.requestId,
+        localCenterId: String(doc.localCenterId),
         session,
       });
     });
