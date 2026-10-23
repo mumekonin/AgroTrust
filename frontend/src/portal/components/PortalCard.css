@@ -1,0 +1,25 @@
+.portal-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  cursor: default;
+}
+
+.portal-card__icon {
+  font-size: 2rem;
+  line-height: 1;
+  user-select: none;
+}
+
+.portal-card__title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.portal-card__desc {
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}

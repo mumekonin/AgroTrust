@@ -1,0 +1,56 @@
+.page-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+/* ── Header ─────────────────────────────────────────────────────── */
+.page-shell__header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  background-color: rgba(15, 30, 19, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.page-shell__logo {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-accent);
+  user-select: none;
+}
+
+/* ── Main ────────────────────────────────────────────────────────── */
+.page-shell__main {
+  flex: 1;
+  width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-5);
+}
+
+/* ── Footer ─────────────────────────────────────────────────────── */
+.page-shell__footer {
+  padding: var(--space-6) var(--space-5);
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  border-top: 1px solid var(--color-border);
+}
+
+/* ── Responsive ─────────────────────────────────────────────────── */
+@media (min-width: 640px) {
+  .page-shell__header {
+    padding: var(--space-4) var(--space-8);
+  }
+
+  .page-shell__main {
+    padding: var(--space-10) var(--space-8);
+  }
+}

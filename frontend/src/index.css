@@ -1,0 +1,104 @@
+/* ─── Design tokens ─────────────────────────────────────────────────── */
+:root {
+  /* Palette */
+  --color-bg: #0f1e13;
+  --color-surface: #162b1c;
+  --color-surface-raise: #1d3824;
+  --color-border: #2a4f33;
+  --color-accent: #4caf6b;
+  --color-accent-dim: #2d7a47;
+  --color-accent-text: #a8e6ba;
+  --color-text-primary: #e8f5ec;
+  --color-text-secondary: #8fba9a;
+  --color-text-muted: #5a7d64;
+  --color-white: #ffffff;
+  --color-overlay: rgba(15, 30, 19, 0.85);
+
+  /* Card colours per portal role */
+  --color-farmer: #4caf6b;
+  --color-local-admin: #64b5f6;
+  --color-distributor: #ffb74d;
+  --color-national-admin: #ce93d8;
+
+  /* Typography */
+  --font-base: 'Inter', system-ui, sans-serif;
+  --font-ethiopic: 'Noto Sans Ethiopic', 'Inter', sans-serif;
+
+  /* Spacing scale (4 px base) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+
+  /* Shadows */
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.4);
+  --shadow-card-hover: 0 6px 24px rgba(0, 0, 0, 0.55);
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 220ms ease;
+}
+
+/* ─── Reset ─────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-base);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  min-height: 100dvh;
+}
+
+/* Ethiopic text uses the Ge'ez-capable font automatically */
+:lang(am),
+[lang='am'] {
+  font-family: var(--font-ethiopic);
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+  border: none;
+  background: none;
+}
+
+#root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
