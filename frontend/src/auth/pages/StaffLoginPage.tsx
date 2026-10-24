@@ -1,11 +1,13 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useTranslation } from '@/shared/i18n/LangContext'
+import { useLang, useTranslation } from '@/shared/i18n/LangContext'
 import { AuthLayout } from '../components/AuthLayout'
 import { PinInput } from '../components/PinInput'
 import { Button } from '@/shared/ui/Button'
 import { Icon } from '@/shared/ui/Icon'
 import {
+  confirmTotp,
+  enrollTotp,
   isMfaRequired,
   isSession,
   loginStaff,
@@ -14,10 +16,11 @@ import {
 import { ApiError } from '@/shared/api/client'
 
 export function StaffLoginPage() {
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
+  const { t: copy } = useLang()
   const navigate = useNavigate()
 
-  const [step, setStep] = useState<'credentials' | 'mfa' | 'success'>('credentials')
+  const [step, setStep] = useState<'credentials' | 'mfa' | 'recovery' | 'success'>('credentials')
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -25,6 +28,10 @@ export function StaffLoginPage() {
   const [challengeId, setChallengeId] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [passwordChangeRequired, setPasswordChangeRequired] = useState(false)
+  const [totpEnrollRequired, setTotpEnrollRequired] = useState(false)
+  const [qrDataUrl, setQrDataUrl] = useState('')
+  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
+  const enrollRequest = useRef(0)
 
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -52,6 +59,8 @@ export function StaffLoginPage() {
       } else if (isMfaRequired(res)) {
         setChallengeId(res.challengeId)
         setPasswordChangeRequired(Boolean(res.passwordChangeRequired))
+        setTotpEnrollRequired(Boolean(res.totpEnrollRequired))
+        setQrDataUrl('')
         setStep('mfa')
       }
     } catch (err) {
@@ -64,6 +73,19 @@ export function StaffLoginPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (step !== 'mfa' || !totpEnrollRequired || !challengeId) return
+    const request = ++enrollRequest.current
+    enrollTotp(challengeId)
+      .then((result) => {
+        if (request === enrollRequest.current) setQrDataUrl(result.qrDataUrl)
+      })
+      .catch((err: unknown) => {
+        if (request !== enrollRequest.current) return
+        setErrorMessage(err instanceof ApiError ? err.detail || err.problem.title : copy.errorGeneric)
+      })
+  }, [step, totpEnrollRequired, challengeId, locale, copy.errorGeneric])
 
   const handleMfaSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -81,6 +103,16 @@ export function StaffLoginPage() {
 
     setLoading(true)
     try {
+      if (totpEnrollRequired) {
+        const enrolled = await confirmTotp(
+          challengeId,
+          totpCode,
+          passwordChangeRequired ? newPassword : undefined,
+        )
+        setRecoveryCodes(enrolled.recoveryCodes)
+        setStep('recovery')
+        return
+      }
       const res = await verifyLoginMfa(
         challengeId,
         totpCode,
@@ -117,11 +149,26 @@ export function StaffLoginPage() {
     )
   }
 
+  if (step === 'recovery') {
+    return (
+      <AuthLayout title={t('totpRecoveryTitle')} subtitle={t('totpRecoveryHint')} iconName="lock" badgeText={t('mfaBadge')}>
+        <ul className="auth-recovery">
+          {recoveryCodes.map((code) => (
+            <li key={code}>{code}</li>
+          ))}
+        </ul>
+        <Button type="button" fullWidth onClick={() => navigate('/admin')}>
+          {t('totpRecoverySaved')}
+        </Button>
+      </AuthLayout>
+    )
+  }
+
   if (step === 'mfa') {
     return (
       <AuthLayout
-        title={t('labelTotpCode')}
-        subtitle={t('totpPrompt')}
+        title={totpEnrollRequired ? t('totpSetupTitle') : t('labelTotpCode')}
+        subtitle={totpEnrollRequired ? t('totpSetupHint') : t('totpPrompt')}
         iconName="lock"
         badgeText={t('mfaBadge')}
       >
@@ -132,6 +179,8 @@ export function StaffLoginPage() {
               <span>{errorMessage}</span>
             </div>
           )}
+
+          {qrDataUrl ? <img className="auth-qr" src={qrDataUrl} alt="" /> : null}
 
           <div className="auth-field">
             <label className="auth-label">{t('labelTotpCode')}</label>

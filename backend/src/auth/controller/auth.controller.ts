@@ -200,6 +200,7 @@ export class AuthController {
     const result = await this.auth.confirmTotp({
       challengeId: dto.challengeId,
       code: dto.code,
+      newPassword: dto.newPassword,
       deviceId: dto.deviceId,
       deviceLabel: dto.deviceLabel,
       ip: clientIp(req),

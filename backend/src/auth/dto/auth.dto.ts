@@ -223,6 +223,11 @@ export class MfaCodeDto {
   @IsString()
   @MaxLength(80)
   deviceLabel?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  newPassword?: string;
 }
 
 export class EnrollDto {

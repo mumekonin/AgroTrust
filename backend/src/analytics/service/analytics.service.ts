@@ -54,6 +54,7 @@ export class AnalyticsService {
       dispatchedKg: totals.dispatchedKg,
       receivedKg: totals.receivedKg,
       handedOverKg: totals.handedOverKg,
+      items: page.items,
     };
   }
 
@@ -105,7 +106,7 @@ export class AnalyticsService {
     grain?: 'center',
   ): Promise<{ date: string; items: SnapshotRow[] }> {
     const scope = snapshotScope(principal);
-    const filter = scopeFilter(scope, grain);
+    const filter = scopeFilter(scope, grain ?? (scope.kind === 'all' ? query.level : undefined));
     if (query.seasonId) filter.seasonId = query.seasonId;
     const date = query.date ?? (await this.latest(filter));
     if (!date) return { date: '', items: [] };
@@ -145,7 +146,7 @@ export class AnalyticsService {
   }
 }
 
-function scopeFilter(scope: SnapshotScope, grain?: 'center'): Record<string, unknown> {
+function scopeFilter(scope: SnapshotScope, grain?: string): Record<string, unknown> {
   if (scope.kind === 'all') return { level: grain ?? 'national' };
   return { level: scope.level, geoId: { $in: scope.geoIds } };
 }

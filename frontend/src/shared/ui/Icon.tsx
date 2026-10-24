@@ -138,6 +138,33 @@ const icons: Record<string, ReactNode> = {
       <path d="M10 6.2A10 10 0 0 1 12 6c6 0 9 6 10 6a16 16 0 0 1-2.2 2.8" {...stroke} />
     </>
   ),
+  dashboard: (
+    <>
+      <rect x="4" y="4" width="7" height="7" rx="1.4" {...stroke} />
+      <rect x="13" y="4" width="7" height="4.5" rx="1.4" {...stroke} />
+      <rect x="13" y="11" width="7" height="9" rx="1.4" {...stroke} />
+      <rect x="4" y="13.5" width="7" height="6.5" rx="1.4" {...stroke} />
+    </>
+  ),
+  calendar: (
+    <>
+      <rect x="4" y="5.5" width="16" height="14" rx="1.6" {...stroke} />
+      <path d="M8 4v3M16 4v3M4 10h16" {...stroke} />
+    </>
+  ),
+  history: (
+    <>
+      <path d="M5 12a7 7 0 1 0 2-4.9" {...stroke} />
+      <path d="M5 5v3.2h3.2M12 8.5V12l2.4 1.6" {...stroke} />
+    </>
+  ),
+  search: (
+    <>
+      <circle cx="11" cy="11" r="6" {...stroke} />
+      <path d="M15.5 15.5L20 20" {...stroke} />
+    </>
+  ),
+  logout: <path d="M10 7V5.5A1.5 1.5 0 0 1 11.5 4h7A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 10 18.5V17M4 12h10M6.5 9.5L4 12l2.5 2.5" {...stroke} />,
 }
 
 export function Icon({

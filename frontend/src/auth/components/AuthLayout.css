@@ -323,6 +323,30 @@
   font-weight: 600;
 }
 
+.auth-qr {
+  width: 11.5rem;
+  height: 11.5rem;
+  align-self: center;
+  background: #fff;
+  border: 1px solid #e4e0d6;
+  border-radius: 0.85rem;
+}
+
+.auth-recovery {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.85rem;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #e4e0d6;
+  border-radius: 0.85rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
 .auth-success {
   background: #fff;
   border: 1px solid #e4e0d6;

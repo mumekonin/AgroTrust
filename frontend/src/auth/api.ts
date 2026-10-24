@@ -129,6 +129,33 @@ export async function verifyLoginMfa(
   return result
 }
 
+export async function enrollTotp(challengeId: string): Promise<{ qrDataUrl: string }> {
+  return apiRequest('/auth/mfa/totp/enroll', {
+    method: 'POST',
+    body: JSON.stringify({ challengeId }),
+  })
+}
+
+export async function confirmTotp(
+  challengeId: string,
+  code: string,
+  newPassword?: string,
+): Promise<AccessSession & { recoveryCodes: string[] }> {
+  const result = await apiRequest<AccessSession & { recoveryCodes: string[] }>('/auth/mfa/totp/confirm', {
+    method: 'POST',
+    body: JSON.stringify({
+      challengeId,
+      code,
+      newPassword,
+      deviceId: getOrCreateDeviceId(),
+      deviceLabel: getDeviceLabel(),
+    }),
+  })
+  setAccessToken(result.accessToken)
+  setCsrfToken(result.csrfToken)
+  return result
+}
+
 /**
  * Farmer activation with paper/SMS activation code (8 chars) and setting initial PIN.
  */

@@ -7,13 +7,27 @@ export class SanitizeInputMiddleware implements NestMiddleware {
     if (req.body) {
       req.body = this.sanitize(req.body);
     }
-    if (req.query) {
-      req.query = this.sanitize(req.query) as Record<string, string>;
-    }
-    if (req.params) {
-      req.params = this.sanitize(req.params) as Record<string, string>;
-    }
+    this.sanitizeInPlace(req.query);
+    this.sanitizeInPlace(req.params);
     next();
+  }
+
+  private sanitizeInPlace(value: unknown): void {
+    if (!value || typeof value !== 'object') return;
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => {
+        if (typeof item === 'string') value[index] = this.sanitize(item);
+        else this.sanitizeInPlace(item);
+      });
+      return;
+    }
+    for (const [key, child] of Object.entries(value)) {
+      if (typeof child === 'string') {
+        (value as Record<string, unknown>)[key] = this.sanitize(child);
+      } else {
+        this.sanitizeInPlace(child);
+      }
+    }
   }
 
   private sanitize<T>(obj: T): T {

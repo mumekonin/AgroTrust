@@ -1,4 +1,6 @@
-import { IsMongoId, IsOptional, Matches } from 'class-validator';
+import { IsIn, IsMongoId, IsOptional, Matches } from 'class-validator';
+
+const SNAPSHOT_LEVELS = ['national', 'region', 'woreda', 'center', 'distributor'] as const;
 
 export class AnalyticsQuery {
   @IsOptional()
@@ -8,4 +10,8 @@ export class AnalyticsQuery {
   @IsOptional()
   @IsMongoId()
   seasonId?: string;
+
+  @IsOptional()
+  @IsIn(SNAPSHOT_LEVELS)
+  level?: (typeof SNAPSHOT_LEVELS)[number];
 }

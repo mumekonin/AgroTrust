@@ -14,6 +14,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
+    "seed:first-admin": "npm run build && node --env-file=.env dist/scripts/seed-first-admin.js",
     "lint": "oxlint src/ test/",
     "test": "vitest run",
     "test:watch": "vitest",

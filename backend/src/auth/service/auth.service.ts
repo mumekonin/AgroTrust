@@ -480,6 +480,7 @@ export class AuthService {
     userId?: string;
     challengeId?: string;
     code: string;
+    newPassword?: string;
     deviceId: string;
     deviceLabel?: string;
     ip: string;
@@ -488,6 +489,12 @@ export class AuthService {
     const userId = input.userId ?? (await this.userIdFromChallenge(input.challengeId));
     const recoveryCodes = await this.totp.confirm(userId, input.code);
     await this.users.setTotpEnabled(userId, true);
+    if (await this.credentials.mustChange(userId, CredentialType.PASSWORD)) {
+      if (!input.newPassword) {
+        throw new AppException(ErrorCode.VALIDATION_FAILED, 'A new password is required');
+      }
+      await this.changePassword(userId, input.newPassword);
+    }
     const user = await this.users.getByIdOrFail(userId);
     if (user.status === UserStatus.PENDING_ACTIVATION) await this.users.activate(userId);
     if (input.challengeId) await this.otp.consumeId(input.challengeId);

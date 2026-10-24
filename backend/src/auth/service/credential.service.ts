@@ -12,7 +12,11 @@ import type { Env } from '../../config/env.schema.js';
 import { CredentialType, UserCredential } from '../schema/user-credential.schema.js';
 
 const ARGON2_PARAMS = { memoryCost: 65_536, timeCost: 3, parallelism: 1 } as const;
-const ARGON2_OPTIONS: argon2.HashOptions = { type: argon2.argon2id, ...ARGON2_PARAMS };
+export const ARGON2_OPTIONS: argon2.HashOptions = { type: argon2.argon2id, ...ARGON2_PARAMS };
+
+export function pepperSecret(secret: string, pepper: string): string {
+  return createHmac('sha256', pepper).update(secret).digest('base64');
+}
 const PASSWORD_HISTORY_SIZE = 5;
 
 // ---- credential policy (§3.2.2) ----
@@ -146,7 +150,7 @@ export class CredentialService {
 
   /** HMAC with the server-side pepper first, then Argon2id (§3.2.2). */
   private peppered(secret: string): string {
-    return createHmac('sha256', this.pepper).update(secret).digest('base64');
+    return pepperSecret(secret, this.pepper);
   }
 
   async hashSecret(secret: string): Promise<string> {
