@@ -185,6 +185,18 @@ export async function activateFarmer(params: {
 /**
  * Log out current session.
  */
+export function acceptInvitation(input: { token: string; code: string; password: string }): Promise<{ challengeId: string }> {
+  return apiRequest('/auth/invitations/accept', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': createIdempotencyKey() },
+    body: JSON.stringify({
+      token: input.token.trim(),
+      code: input.code.trim(),
+      password: input.password,
+    }),
+  })
+}
+
 export async function logout(): Promise<void> {
   try {
     await apiRequest<void>('/auth/logout', { method: 'POST' })

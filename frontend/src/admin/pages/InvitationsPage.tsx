@@ -11,10 +11,13 @@ export function InvitationsPage() {
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const [token, setToken] = useState<string | null>(null)
+  const [smsCode, setSmsCode] = useState<string | null>(null)
 
   async function save(work: () => Promise<string | void>) {
     setError(null)
     setNote(null)
+    setToken(null)
+    setSmsCode(null)
     try {
       setNote((await work()) || t.adminSaved)
     } catch (err) {
@@ -31,6 +34,11 @@ export function InvitationsPage() {
           {t.adminCodeOnce} <strong>{token}</strong>
         </p>
       ) : null}
+      {smsCode ? (
+        <p className="admin__note">
+          {t.inviteCodeShown} <strong>{smsCode}</strong>
+        </p>
+      ) : null}
       <div className="admin__split">
         <section className="admin__card">
           <StepUpForm />
@@ -40,7 +48,7 @@ export function InvitationsPage() {
               event.preventDefault()
               const form = new FormData(event.currentTarget)
               void save(async () => {
-                const created = await adminWrite<{ id: string; status: string; token?: string }>('/admin/invitations', 'POST', {
+                const created = await adminWrite<{ id: string; status: string; token?: string; code?: string }>('/admin/invitations', 'POST', {
                   role: String(form.get('role')),
                   email: String(form.get('email') ?? '').trim() || undefined,
                   phone: String(form.get('phone') ?? '').trim() || undefined,
@@ -49,6 +57,7 @@ export function InvitationsPage() {
                   distributorId: String(form.get('distributorId') ?? '').trim() || undefined,
                 })
                 if (created.token) setToken(created.token)
+                if (created.code) setSmsCode(created.code)
                 return `${t.adminSaved} ${created.id} · ${created.status}`
               })
             }}
@@ -56,15 +65,13 @@ export function InvitationsPage() {
             <h2>{t.adminInvite}</h2>
             <label>
               {t.adminRole}
-              <select name="role" defaultValue="local_admin">
-                <option value="local_admin">local_admin</option>
-                <option value="distributor_staff">distributor_staff</option>
+              <select name="role" defaultValue="regional_admin">
                 <option value="regional_admin">regional_admin</option>
                 <option value="national_admin">national_admin</option>
                 <option value="auditor">auditor</option>
               </select>
             </label>
-            <label>{t.adminEmail}<input name="email" type="email" /></label>
+            <label>{t.adminEmail}<input name="email" type="email" required /></label>
             <label>{t.adminPhone}<input name="phone" required /></label>
             <label>{t.adminRegionsServed}<input name="regionIds" /></label>
             <label>{t.adminCenters}<input name="localCenterIds" /></label>
@@ -77,8 +84,9 @@ export function InvitationsPage() {
             event.preventDefault()
             const id = String(new FormData(event.currentTarget).get('id') ?? '').trim()
             void save(async () => {
-              const approved = await adminWrite<{ token?: string }>(`/admin/invitations/${id}/approve`, 'POST', {})
+              const approved = await adminWrite<{ token?: string; code?: string }>(`/admin/invitations/${id}/approve`, 'POST', {})
               if (approved.token) setToken(approved.token)
+              if (approved.code) setSmsCode(approved.code)
             })
           }}>
             <h2>{t.adminApproveInvite}</h2>

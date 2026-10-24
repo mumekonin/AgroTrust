@@ -314,6 +314,9 @@ export function StaffLoginPage() {
           <Link to="/auth/farmer" className="auth-link">
             {t('linkFarmerLogin')}
           </Link>
+          <Link to="/auth/accept" className="auth-link">
+            {copy.inviteHave}
+          </Link>
         </div>
       </form>
     </AuthLayout>
@@ -321,5 +324,8 @@ export function StaffLoginPage() {
 }
 
 function staffHome(): string {
-  return readAccessRole() === 'local_admin' ? '/local' : '/admin'
+  const role = readAccessRole()
+  if (role === 'local_admin') return '/local'
+  if (role === 'regional_admin') return '/regional'
+  return '/admin'
 }

@@ -8,6 +8,8 @@ import { AppException } from '../../common/errors/app.exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import { normalizeEthiopianPhone } from '../../common/utils/phone.util.js';
 import { UserStatus } from '../../users/schema/user.schema.js';
+import { NotificationEvent } from '../../notifications/schema/notification.schema.js';
+import { NotificationsService } from '../../notifications/service/notifications.service.js';
 import { UsersService } from '../../users/service/users.service.js';
 import type { Principal } from '../../common/guards/auth.decorator.js';
 import { CredentialType } from '../schema/user-credential.schema.js';
@@ -49,6 +51,7 @@ export class InvitationService {
     private readonly users: UsersService,
     private readonly credentials: CredentialService,
     private readonly otp: OtpService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async create(
@@ -64,7 +67,7 @@ export class InvitationService {
         distributorId?: string;
       };
     },
-  ): Promise<{ id: string; status: InvitationStatus; expiresAt: Date; token?: string }> {
+  ): Promise<{ id: string; status: InvitationStatus; expiresAt: Date; token?: string; code?: string }> {
     const phone = input.phone ? normalizeEthiopianPhone(input.phone) : null;
     if (input.phone && !phone) {
       throw new AppException(ErrorCode.VALIDATION_FAILED, 'Invalid Ethiopian phone number');
@@ -103,17 +106,11 @@ export class InvitationService {
       expiresAt,
       status: decision === 'ok' ? InvitationStatus.APPROVED : InvitationStatus.PENDING,
     });
-    if (decision === 'ok') {
-      await this.otp.issue({
-        phone,
-        purpose: OtpPurpose.INVITATION,
-        payloadHash: String(doc._id),
-      });
-    }
-    return { id: String(doc._id), status: doc.status, expiresAt, token };
+    const code = token ? await this.sendInviteCode(phone, String(doc._id)) : undefined;
+    return { id: String(doc._id), status: doc.status, expiresAt, token, code };
   }
 
-  async approve(principal: Principal, id: string): Promise<{ token: string; expiresAt: Date }> {
+  async approve(principal: Principal, id: string): Promise<{ token: string; expiresAt: Date; code: string }> {
     if (!principal.roles.includes(Role.NATIONAL_ADMIN)) {
       throw new AppException(ErrorCode.FORBIDDEN, 'You cannot do that', 403);
     }
@@ -131,14 +128,11 @@ export class InvitationService {
     doc.status = InvitationStatus.APPROVED;
     doc.expiresAt = expiresAt;
     await doc.save();
-    if (doc.phone) {
-      await this.otp.issue({
-        phone: doc.phone,
-        purpose: OtpPurpose.INVITATION,
-        payloadHash: String(doc._id),
-      });
+    if (!doc.phone) {
+      throw new AppException(ErrorCode.VALIDATION_FAILED, 'A phone number is required so the invitation code can be sent');
     }
-    return { token, expiresAt };
+    const code = await this.sendInviteCode(doc.phone, String(doc._id));
+    return { token, expiresAt, code };
   }
 
   async revoke(principal: Principal, id: string): Promise<void> {
@@ -195,6 +189,22 @@ export class InvitationService {
       ttlMs: 30 * 60_000,
     });
     return { challengeId: challenge.id };
+  }
+
+  private async sendInviteCode(phone: string, invitationId: string): Promise<string> {
+    const issued = await this.otp.issue({
+      phone,
+      purpose: OtpPurpose.INVITATION,
+      payloadHash: invitationId,
+      ttlMs: INVITE_TTL_MS,
+    });
+    await this.notifications.enqueue({
+      phone,
+      event: NotificationEvent.LOGIN_OTP,
+      params: { code: issued.code },
+      related: { type: 'otp_challenge', id: issued.id },
+    });
+    return issued.code;
   }
 }
 

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module.js';
 import { GeoModule } from '../geo/geo.module.js';
@@ -14,7 +14,7 @@ import { FarmersService } from './service/farmers.service.js';
 
 @Module({
   imports: [
-    AuthModule,
+    forwardRef(() => AuthModule),
     UsersModule,
     GeoModule,
     MongooseModule.forFeature([

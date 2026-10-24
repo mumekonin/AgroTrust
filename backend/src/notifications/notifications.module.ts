@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -19,7 +19,7 @@ import { HttpSmsGateway, MockSmsGateway, SmsGateway } from './service/sms-gatewa
 @Module({
   imports: [
     ScheduleModule.forRoot(),
-    FarmersModule,
+    forwardRef(() => FarmersModule),
     FraudModule,
     MongooseModule.forFeature([{ name: Notification.name, schema: NotificationSchema }]),
   ],

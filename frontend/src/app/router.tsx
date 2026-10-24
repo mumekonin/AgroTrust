@@ -3,6 +3,7 @@ import { WelcomePage } from '@/portal/pages/WelcomePage'
 import { FarmerLoginPage } from '@/auth/pages/FarmerLoginPage'
 import { StaffLoginPage } from '@/auth/pages/StaffLoginPage'
 import { ActivationPage } from '@/auth/pages/ActivationPage'
+import { AcceptInvitationPage } from '@/auth/pages/AcceptInvitationPage'
 import { FarmerShell } from '@/farmers/components/FarmerShell'
 import { FarmerHomePage } from '@/farmers/pages/FarmerHomePage'
 import { FarmerRequestPage } from '@/farmers/pages/FarmerRequestPage'
@@ -22,6 +23,8 @@ import { InvitationsPage } from '@/admin/pages/InvitationsPage'
 import { OperationsPage } from '@/admin/pages/OperationsPage'
 import { LocalShell } from '@/local-admin/components/LocalShell'
 import { LocalFarmersPage } from '@/local-admin/pages/LocalFarmersPage'
+import { RegionalShell } from '@/regional/components/RegionalShell'
+import { RegionalInvitationsPage } from '@/regional/pages/RegionalInvitationsPage'
 
 export function Router() {
   return (
@@ -31,9 +34,13 @@ export function Router() {
         <Route path="/auth/farmer" element={<FarmerLoginPage />} />
         <Route path="/auth/staff" element={<StaffLoginPage />} />
         <Route path="/auth/activate" element={<ActivationPage />} />
+        <Route path="/auth/accept" element={<AcceptInvitationPage />} />
         <Route path="/farmer" element={<FarmerShell />}>
           <Route index element={<FarmerHomePage />} />
           <Route path="request" element={<FarmerRequestPage />} />
+        </Route>
+        <Route path="/regional" element={<RegionalShell />}>
+          <Route index element={<RegionalInvitationsPage />} />
         </Route>
         <Route path="/local" element={<LocalShell />}>
           <Route index element={<LocalFarmersPage />} />

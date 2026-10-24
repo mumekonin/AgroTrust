@@ -1,10 +1,11 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { MongooseModule } from '@nestjs/mongoose';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../common/guards/roles.guard.js';
 import { ScopeGuard } from '../common/guards/scope.guard.js';
 import { StepUpGuard } from '../common/guards/step-up.guard.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 import { UsersModule } from '../users/users.module.js';
 import { AuthController, InvitationController } from './controller/auth.controller.js';
 import { AuthSession, AuthSessionSchema } from './schema/auth-session.schema.js';
@@ -27,6 +28,7 @@ import { TotpService } from './service/totp.service.js';
 @Module({
   imports: [
     UsersModule,
+    forwardRef(() => NotificationsModule),
     MongooseModule.forFeature([
       { name: UserCredential.name, schema: UserCredentialSchema },
       { name: AuthSession.name, schema: AuthSessionSchema },
