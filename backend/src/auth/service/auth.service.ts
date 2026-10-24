@@ -360,7 +360,7 @@ export class AuthService {
       const totpOk = ok && (await this.totp.verify(user.id, input.code));
       if (!totpOk) throw new AppException(ErrorCode.UNAUTHENTICATED, PASSWORD_ERROR, 401);
     }
-    const until = new Date(Date.now() + 5 * 60_000);
+    const until = new Date(Date.now() + 30 * 60_000);
     await this.sessions.setStepUp(principal.sid, until);
   }
 

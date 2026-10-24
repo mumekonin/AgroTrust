@@ -8,6 +8,7 @@ export function CenterActions({ onSaved }: { onSaved: () => void }) {
   const { t } = useLang()
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
+  const [savedId, setSavedId] = useState<string | null>(null)
 
   async function save(work: () => Promise<void>) {
     setError(null)
@@ -27,10 +28,16 @@ export function CenterActions({ onSaved }: { onSaved: () => void }) {
         <StepUpForm />
         {error ? <p className="admin__error">{error}</p> : null}
         {note ? <p className="admin__note">{note}</p> : null}
+        {savedId ? (
+          <p className="admin__note">
+            {t.adminCopyId} <strong>{savedId}</strong>
+          </p>
+        ) : null}
         <form className="admin__form" onSubmit={(event: FormEvent<HTMLFormElement>) => {
           event.preventDefault()
           const form = new FormData(event.currentTarget)
-          void save(() => adminWrite('/admin/local-centers', 'POST', {
+          void save(async () => {
+            const created = await adminWrite<{ id: string }>('/admin/local-centers', 'POST', {
             code: String(form.get('code') ?? '').trim(),
             name: String(form.get('name') ?? '').trim(),
             geo: {
@@ -48,7 +55,9 @@ export function CenterActions({ onSaved }: { onSaved: () => void }) {
             servesKebeleIds: splitIds(String(form.get('servesKebeleIds') ?? '')) ?? [],
             capacityKg: String(form.get('capacityKg') ?? '') ? Number(form.get('capacityKg')) : undefined,
             status: 'active',
-          }).then(() => undefined))
+          })
+            setSavedId(created.id)
+          })
         }}>
           <h2>{t.adminCreateCenter}</h2>
           <label>{t.adminCode}<input name="code" required /></label>

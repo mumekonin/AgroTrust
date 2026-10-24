@@ -23,8 +23,20 @@ import { InvitationsPage } from '@/admin/pages/InvitationsPage'
 import { OperationsPage } from '@/admin/pages/OperationsPage'
 import { LocalShell } from '@/local-admin/components/LocalShell'
 import { LocalFarmersPage } from '@/local-admin/pages/LocalFarmersPage'
+import { QueuePage } from '@/local-admin/pages/QueuePage'
+import { AssistedPage } from '@/local-admin/pages/AssistedPage'
+import { RequisitionsPage } from '@/local-admin/pages/RequisitionsPage'
+import { PaymentsPage as LocalPaymentsPage } from '@/local-admin/pages/PaymentsPage'
+import { ReceivePage } from '@/local-admin/pages/ReceivePage'
+import { PickupPage } from '@/local-admin/pages/PickupPage'
+import { NoticesPage as LocalNoticesPage } from '@/local-admin/pages/NoticesPage'
+import { StockPage } from '@/local-admin/pages/StockPage'
 import { RegionalShell } from '@/regional/components/RegionalShell'
 import { RegionalInvitationsPage } from '@/regional/pages/RegionalInvitationsPage'
+import { DistributorShell } from '@/distributor/components/DistributorShell'
+import { RequisitionsPage as DistributorRequisitionsPage } from '@/distributor/pages/RequisitionsPage'
+import { ShipmentsPage } from '@/distributor/pages/ShipmentsPage'
+import { PaymentsPage as DistributorPaymentsPage } from '@/distributor/pages/PaymentsPage'
 
 export function Router() {
   return (
@@ -41,9 +53,29 @@ export function Router() {
         </Route>
         <Route path="/regional" element={<RegionalShell />}>
           <Route index element={<RegionalInvitationsPage />} />
+          <Route path="overview" element={<NationalAdminPage />} />
+          <Route path="centers" element={<CentersPage />} />
+          <Route path="distributors" element={<DistributorsPage />} />
+          <Route path="allocations" element={<AllocationsPage />} />
+          <Route path="operations" element={<OperationsPage />} />
+          <Route path="fraud" element={<FraudPage />} />
+          <Route path="audit" element={<AuditPage />} />
         </Route>
         <Route path="/local" element={<LocalShell />}>
           <Route index element={<LocalFarmersPage />} />
+          <Route path="queue" element={<QueuePage />} />
+          <Route path="assisted" element={<AssistedPage />} />
+          <Route path="requisitions" element={<RequisitionsPage />} />
+          <Route path="payments" element={<LocalPaymentsPage />} />
+          <Route path="receiving" element={<ReceivePage />} />
+          <Route path="pickup" element={<PickupPage />} />
+          <Route path="notices" element={<LocalNoticesPage />} />
+          <Route path="stock" element={<StockPage />} />
+        </Route>
+        <Route path="/distributor" element={<DistributorShell />}>
+          <Route index element={<DistributorRequisitionsPage />} />
+          <Route path="shipments" element={<ShipmentsPage />} />
+          <Route path="payments" element={<DistributorPaymentsPage />} />
         </Route>
         <Route path="/admin" element={<AdminShell />}>
           <Route index element={<NationalAdminPage />} />

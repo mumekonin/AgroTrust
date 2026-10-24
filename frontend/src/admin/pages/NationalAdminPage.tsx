@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatKg, formatQuintal } from '@/shared/format/quantity'
+import { readAccessRole } from '@/shared/api/client'
 import { useLang } from '@/shared/i18n/LangContext'
 import { Icon } from '@/shared/ui/Icon'
 import {
@@ -259,7 +260,7 @@ export function NationalAdminPage() {
         <section className="admin__card" aria-labelledby="admin-fraud">
           <div className="admin__card-head">
             <h2 id="admin-fraud">{t.adminFraudPanel}</h2>
-            <Link className="admin__card-link" to="/admin/fraud">
+            <Link className="admin__card-link" to={readAccessRole() === 'regional_admin' ? '/regional/fraud' : '/admin/fraud'}>
               {t.adminFraud}
             </Link>
           </div>

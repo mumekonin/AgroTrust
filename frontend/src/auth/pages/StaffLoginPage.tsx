@@ -327,5 +327,6 @@ function staffHome(): string {
   const role = readAccessRole()
   if (role === 'local_admin') return '/local'
   if (role === 'regional_admin') return '/regional'
+  if (role === 'distributor_staff') return '/distributor'
   return '/admin'
 }

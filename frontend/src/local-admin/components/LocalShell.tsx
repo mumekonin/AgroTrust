@@ -73,10 +73,22 @@ export function LocalShell() {
         </NavLink>
         {allowed ? (
           <nav className="admin__nav" aria-label={t.localRoleLabel}>
-            <NavLink to="/local" end className={({ isActive }) => (isActive ? 'is-active' : undefined)}>
-              <Icon name="person" size="sm" />
-              {t.localFarmers}
-            </NavLink>
+            {([
+              ['/local', true, 'localFarmers', 'person'],
+              ['/local/queue', false, 'localQueue', 'check'],
+              ['/local/assisted', false, 'localAssisted', 'agriculture'],
+              ['/local/requisitions', false, 'localRequisitions', 'local_shipping'],
+              ['/local/payments', false, 'localPay', 'verified_user'],
+              ['/local/receiving', false, 'localReceive', 'local_shipping'],
+              ['/local/pickup', false, 'localPickup', 'badge'],
+              ['/local/notices', false, 'localNotices', 'sms'],
+              ['/local/stock', false, 'localStock', 'agriculture'],
+            ] as const).map(([to, end, label, icon]) => (
+              <NavLink key={to} to={to} end={end} className={({ isActive }) => (isActive ? 'is-active' : undefined)}>
+                <Icon name={icon} size="sm" />
+                {t[label]}
+              </NavLink>
+            ))}
           </nav>
         ) : null}
         <div className="admin__side-foot">

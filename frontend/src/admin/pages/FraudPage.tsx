@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { readAccessRole } from '@/shared/api/client'
 import { useLang } from '@/shared/i18n/LangContext'
 import type { Strings } from '@/shared/i18n'
 import { Icon } from '@/shared/ui/Icon'
@@ -25,6 +26,7 @@ function statusLabel(status: FraudRow['status'], t: Strings): string {
 
 export function FraudPage() {
   const { locale, t } = useLang()
+  const canResolve = readAccessRole() !== 'auditor'
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('')
   const [rows, setRows] = useState<FraudRow[] | null>(null)
@@ -102,28 +104,32 @@ export function FraudPage() {
                 <span className={`admin__chip${flag.status === 'open' ? ' admin__chip--stop' : ''}${flag.status === 'reviewing' ? ' admin__chip--wait' : ''}`}>
                   {statusLabel(flag.status, t)}
                 </span>
-                <button
-                  type="button"
-                  className="admin__text-btn"
-                  onClick={() => {
-                    void adminWrite(`/admin/fraud-flags/${flag.id}/resolve`, 'POST', { status: 'reviewing' })
-                      .then(() => setTick((value) => value + 1))
-                      .catch((err: unknown) => setError(problem(err, t.errorGeneric)))
-                  }}
-                >
-                  {t.adminReviewing}
-                </button>
-                <button
-                  type="button"
-                  className="admin__text-btn"
-                  onClick={() => {
-                    void adminWrite(`/admin/fraud-flags/${flag.id}/resolve`, 'POST', { status: 'resolved' })
-                      .then(() => setTick((value) => value + 1))
-                      .catch((err: unknown) => setError(problem(err, t.errorGeneric)))
-                  }}
-                >
-                  {t.adminResolved}
-                </button>
+                {canResolve ? (
+                  <>
+                    <button
+                      type="button"
+                      className="admin__text-btn"
+                      onClick={() => {
+                        void adminWrite(`/admin/fraud-flags/${flag.id}/resolve`, 'POST', { status: 'reviewing' })
+                          .then(() => setTick((value) => value + 1))
+                          .catch((err: unknown) => setError(problem(err, t.errorGeneric)))
+                      }}
+                    >
+                      {t.adminReviewing}
+                    </button>
+                    <button
+                      type="button"
+                      className="admin__text-btn"
+                      onClick={() => {
+                        void adminWrite(`/admin/fraud-flags/${flag.id}/resolve`, 'POST', { status: 'resolved' })
+                          .then(() => setTick((value) => value + 1))
+                          .catch((err: unknown) => setError(problem(err, t.errorGeneric)))
+                      }}
+                    >
+                      {t.adminResolved}
+                    </button>
+                  </>
+                ) : null}
               </span>
             </li>
           ))}

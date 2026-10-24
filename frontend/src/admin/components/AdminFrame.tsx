@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { readAccessRole } from '@/shared/api/client'
 import { useLang } from '@/shared/i18n/LangContext'
 import { Icon } from '@/shared/ui/Icon'
 import { LanguageSwitch } from '@/shared/ui/LanguageSwitch'
@@ -22,6 +23,11 @@ export function AdminFrame({
   children: ReactNode
 }) {
   const { t } = useLang()
+  const role = readAccessRole()
+  const mark = role === 'regional_admin' ? 'RA' : role === 'auditor' ? 'AU' : 'NA'
+  const roleLabel = role === 'regional_admin' ? t.regionalRoleLabel : role === 'auditor' ? t.auditorRole : t.adminRoleLabel
+  const office =
+    role === 'regional_admin' ? t.regionalOversight : role === 'auditor' ? t.auditorRole : t.adminOversight
   return (
     <main className="admin__main">
       <div className="admin__top">
@@ -37,11 +43,11 @@ export function AdminFrame({
         <LanguageSwitch tone="light" />
         <div className="admin__who">
           <span className="admin__avatar" aria-hidden>
-            NA
+            {mark}
           </span>
           <span>
-            <strong>{t.adminRoleLabel}</strong>
-            <small>{t.adminOversight}</small>
+            <strong>{roleLabel}</strong>
+            <small>{office}</small>
           </span>
         </div>
       </div>

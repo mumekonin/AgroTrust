@@ -22,6 +22,8 @@ const SECTIONS = [
   { to: '/admin/audit', end: false, label: 'adminAudit', icon: 'history' },
 ] as const
 
+const AUDITOR_NAV = new Set<string>(['/admin', '/admin/payments', '/admin/notifications', '/admin/fraud', '/admin/audit'])
+
 function minutesLeft(): number | null {
   const token = getAccessToken()
   if (!token) return null
@@ -43,6 +45,7 @@ export function AdminShell() {
   const navigate = useNavigate()
   const [ready, setReady] = useState(false)
   const [allowed, setAllowed] = useState(false)
+  const [auditor, setAuditor] = useState(false)
   const [minutes, setMinutes] = useState<number | null>(null)
 
   useEffect(() => {
@@ -53,7 +56,9 @@ export function AdminShell() {
         navigate('/auth/staff', { replace: true })
         return
       }
-      setAllowed(readAccessRole() === 'national_admin')
+      const role = readAccessRole()
+      setAuditor(role === 'auditor')
+      setAllowed(role === 'national_admin' || role === 'auditor')
       setMinutes(minutesLeft())
       setReady(true)
     })
@@ -84,12 +89,12 @@ export function AdminShell() {
           </span>
           <span>
             <strong>{t.appName}</strong>
-            <small>{t.adminOversight}</small>
+            <small>{auditor ? t.auditorRole : t.adminOversight}</small>
           </span>
         </NavLink>
         {allowed ? (
           <nav className="admin__nav" aria-label={t.adminTitle}>
-            {SECTIONS.map((item) => (
+            {(auditor ? SECTIONS.filter((item) => AUDITOR_NAV.has(item.to)) : SECTIONS).map((item) => (
               <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => (isActive ? 'is-active' : undefined)}>
                 <Icon name={item.icon} size="sm" />
                 {t[item.label]}

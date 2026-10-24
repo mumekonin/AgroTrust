@@ -245,6 +245,14 @@
   vertical-align: middle;
 }
 
+.admin__strong small {
+  display: block;
+  margin-top: 0.15rem;
+  color: #6e766f;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
 .admin__strong {
   font-weight: 700;
 }

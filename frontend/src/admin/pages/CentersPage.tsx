@@ -63,7 +63,10 @@ export function CentersPage() {
                   const region = placeById.get(row.regionId)
                   return (
                     <tr key={row.id}>
-                      <td className="admin__strong">{row.name}</td>
+                      <td className="admin__strong">
+                        {row.name}
+                        <small>{row.id}</small>
+                      </td>
                       <td>{row.code}</td>
                       <td>{region ? localized(region.name, locale) : t.adminUnknown}</td>
                       <td>{row.kebeleCount}</td>

@@ -24,11 +24,11 @@ const DAY = 86_400;
 
 export const SESSION_POLICY: Record<Role, SessionPolicy> = {
   [Role.FARMER]: { accessTtlSeconds: 15 * MIN, idleSeconds: 30 * DAY, absoluteSeconds: 90 * DAY },
-  [Role.LOCAL_ADMIN]: { accessTtlSeconds: 10 * MIN, idleSeconds: 30 * MIN, absoluteSeconds: 8 * HOUR },
-  [Role.DISTRIBUTOR_STAFF]: { accessTtlSeconds: 10 * MIN, idleSeconds: 30 * MIN, absoluteSeconds: 8 * HOUR },
-  [Role.REGIONAL_ADMIN]: { accessTtlSeconds: 10 * MIN, idleSeconds: 15 * MIN, absoluteSeconds: 8 * HOUR },
-  [Role.NATIONAL_ADMIN]: { accessTtlSeconds: 10 * MIN, idleSeconds: 15 * MIN, absoluteSeconds: 8 * HOUR },
-  [Role.AUDITOR]: { accessTtlSeconds: 10 * MIN, idleSeconds: 15 * MIN, absoluteSeconds: 8 * HOUR },
+  [Role.LOCAL_ADMIN]: { accessTtlSeconds: 30 * MIN, idleSeconds: 30 * MIN, absoluteSeconds: 8 * HOUR },
+  [Role.DISTRIBUTOR_STAFF]: { accessTtlSeconds: 30 * MIN, idleSeconds: 30 * MIN, absoluteSeconds: 8 * HOUR },
+  [Role.REGIONAL_ADMIN]: { accessTtlSeconds: 30 * MIN, idleSeconds: 30 * MIN, absoluteSeconds: 8 * HOUR },
+  [Role.NATIONAL_ADMIN]: { accessTtlSeconds: 30 * MIN, idleSeconds: 30 * MIN, absoluteSeconds: 8 * HOUR },
+  [Role.AUDITOR]: { accessTtlSeconds: 30 * MIN, idleSeconds: 30 * MIN, absoluteSeconds: 8 * HOUR },
 };
 
 /** Most privileged role first. Used when a user has several roles. */
