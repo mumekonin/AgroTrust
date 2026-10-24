@@ -13,7 +13,7 @@ import {
   loginStaff,
   verifyLoginMfa,
 } from '../api'
-import { ApiError } from '@/shared/api/client'
+import { ApiError, readAccessRole } from '@/shared/api/client'
 
 export function StaffLoginPage() {
   const { t, locale } = useTranslation()
@@ -55,7 +55,7 @@ export function StaffLoginPage() {
 
       if (isSession(res)) {
         setStep('success')
-        setTimeout(() => navigate('/admin'), 800)
+        setTimeout(() => navigate(staffHome()), 800)
       } else if (isMfaRequired(res)) {
         setChallengeId(res.challengeId)
         setPasswordChangeRequired(Boolean(res.passwordChangeRequired))
@@ -121,7 +121,7 @@ export function StaffLoginPage() {
       )
       if (isSession(res)) {
         setStep('success')
-        setTimeout(() => navigate('/admin'), 800)
+        setTimeout(() => navigate(staffHome()), 800)
       }
     } catch (err) {
       if (err instanceof ApiError) {
@@ -157,7 +157,7 @@ export function StaffLoginPage() {
             <li key={code}>{code}</li>
           ))}
         </ul>
-        <Button type="button" fullWidth onClick={() => navigate('/admin')}>
+        <Button type="button" fullWidth onClick={() => navigate(staffHome())}>
           {t('totpRecoverySaved')}
         </Button>
       </AuthLayout>
@@ -318,4 +318,8 @@ export function StaffLoginPage() {
       </form>
     </AuthLayout>
   )
+}
+
+function staffHome(): string {
+  return readAccessRole() === 'local_admin' ? '/local' : '/admin'
 }

@@ -20,6 +20,8 @@ import { PaymentsPage } from '@/admin/pages/PaymentsPage'
 import { NoticesPage } from '@/admin/pages/NoticesPage'
 import { InvitationsPage } from '@/admin/pages/InvitationsPage'
 import { OperationsPage } from '@/admin/pages/OperationsPage'
+import { LocalShell } from '@/local-admin/components/LocalShell'
+import { LocalFarmersPage } from '@/local-admin/pages/LocalFarmersPage'
 
 export function Router() {
   return (
@@ -32,6 +34,9 @@ export function Router() {
         <Route path="/farmer" element={<FarmerShell />}>
           <Route index element={<FarmerHomePage />} />
           <Route path="request" element={<FarmerRequestPage />} />
+        </Route>
+        <Route path="/local" element={<LocalShell />}>
+          <Route index element={<LocalFarmersPage />} />
         </Route>
         <Route path="/admin" element={<AdminShell />}>
           <Route index element={<NationalAdminPage />} />
