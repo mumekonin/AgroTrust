@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { formatBirr } from '@/shared/format/quantity'
 import { useLang } from '@/shared/i18n/LangContext'
 import type { Strings } from '@/shared/i18n'
-import { loadCatalog, loadSeasons, type CatalogItem, type SeasonRow } from '../api'
+import { loadAdminPrices, loadCatalog, loadSeasons, type AdminPrice, type CatalogItem, type SeasonRow } from '../api'
 import { SeasonActions } from '../components/SeasonActions'
 import { AdminFrame } from '../components/AdminFrame'
 import { localized, matches, problem, when } from '../text'
@@ -20,6 +20,7 @@ export function SeasonsPage() {
   const [tick, setTick] = useState(0)
   const [seasons, setSeasons] = useState<SeasonRow[] | null>(null)
   const [catalog, setCatalog] = useState<CatalogItem[] | null>(null)
+  const [prices, setPrices] = useState<AdminPrice[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -47,6 +48,13 @@ export function SeasonsPage() {
     loadCatalog(seasonId)
       .then((rows) => {
         if (!cancelled) setCatalog(rows)
+      })
+    loadAdminPrices(seasonId)
+      .then((rows) => {
+        if (!cancelled) setPrices(rows)
+      })
+      .catch(() => {
+        if (!cancelled) setPrices([])
       })
       .catch((err: unknown) => {
         if (cancelled) return
@@ -124,27 +132,42 @@ export function SeasonsPage() {
           </div>
           {catalog?.length === 0 ? <p className="admin__empty">{t.adminEmpty}</p> : null}
           <ul className="admin__list">
-            {priceRows.map((item) => (
+            {prices.map((item) => (
               <li key={item.id}>
                 <div>
-                  <strong>{localized(item.name, locale)}</strong>
+                  <strong>{item.code}</strong>
                   <small>
-                    {item.code}
-                  {item.subsidySantimPerKg
-                    ? ` · ${t.adminSubsidy} ETB ${formatBirr(item.subsidySantimPerKg)}`
-                    : ''}
+                    {item.approved ? t.adminPriceApproved : t.adminPricePending}
+                    {item.subsidySantimPerKg ? ` · ${t.adminSubsidy} ETB ${formatBirr(item.subsidySantimPerKg)}` : ''}
                   </small>
                 </div>
                 <span className="admin__price">
-                  ETB {formatBirr(item.unitPriceSantimPerKg ?? 0)}
+                  ETB {formatBirr(item.unitPriceSantimPerKg)}
                   <small>{t.adminPerKg}</small>
                 </span>
               </li>
             ))}
+            {prices.length === 0
+              ? priceRows.map((item) => (
+                  <li key={item.id}>
+                    <div>
+                      <strong>{localized(item.name, locale)}</strong>
+                      <small>
+                        {item.code}
+                        {item.subsidySantimPerKg ? ` · ${t.adminSubsidy} ETB ${formatBirr(item.subsidySantimPerKg)}` : ''}
+                      </small>
+                    </div>
+                    <span className="admin__price">
+                      ETB {formatBirr(item.unitPriceSantimPerKg ?? 0)}
+                      <small>{t.adminPerKg}</small>
+                    </span>
+                  </li>
+                ))
+              : null}
           </ul>
         </section>
       </div>
-      <SeasonActions season={selected} catalog={catalog ?? []} onSaved={() => setTick((value) => value + 1)} />
+      <SeasonActions season={selected} catalog={catalog ?? []} prices={prices} onSaved={() => setTick((value) => value + 1)} />
     </AdminFrame>
   )
 }

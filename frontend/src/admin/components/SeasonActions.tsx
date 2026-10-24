@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
+import { formatBirr } from '@/shared/format/quantity'
 import { useLang } from '@/shared/i18n/LangContext'
-import type { CatalogItem, SeasonRow } from '../api'
+import type { AdminPrice, CatalogItem, SeasonRow } from '../api'
 import { iso, problem, santim } from '../text'
 import { adminWrite } from '../write'
 import { StepUpForm } from './StepUpForm'
@@ -8,10 +9,12 @@ import { StepUpForm } from './StepUpForm'
 export function SeasonActions({
   season,
   catalog,
+  prices,
   onSaved,
 }: {
   season?: SeasonRow
   catalog: CatalogItem[]
+  prices: AdminPrice[]
   onSaved: () => void
 }) {
   const { t } = useLang()
@@ -242,14 +245,15 @@ export function SeasonActions({
               <h2>{t.adminApprovePrice}</h2>
               <label>
                 {t.adminPrices}
-                <select name="priceId" required defaultValue={catalog.find((item) => item.priceId)?.priceId ?? ''}>
-                  {catalog.filter((item) => item.priceId).map((item) => (
-                    <option key={item.priceId} value={item.priceId}>
-                      {item.code}
+                <select name="priceId" required key={prices.filter((item) => !item.approved).map((item) => item.id).join(',')} defaultValue={prices.find((item) => !item.approved)?.id ?? ''}>
+                  {prices.filter((item) => !item.approved).map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.code} · ETB {formatBirr(item.unitPriceSantimPerKg)}
                     </option>
                   ))}
                 </select>
               </label>
+              {prices.some((item) => !item.approved) ? <p className="admin__hint">{t.adminPricePending}</p> : null}
               <button className="admin__submit" type="submit" disabled={busy}>{t.adminSave}</button>
             </form>
           </>

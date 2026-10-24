@@ -92,6 +92,11 @@ export class ListCatalogQuery {
   limit?: number;
 }
 
+export class ListPriceQuery {
+  @IsMongoId()
+  seasonId!: string;
+}
+
 export class CreatePriceDto {
   @IsMongoId()
   inputId!: string;

@@ -1,92 +1,66 @@
-# 🌾 AgroTrust
+# AgroTrust
 
-**Digitizing Agricultural Input Delivery in Ethiopia**
+AgroTrust is a system for delivering fertilizer and other agricultural inputs to smallholder farmers in Ethiopia. A local admin verifies each farmer in person. From that point, the request, the payment, the shipment, and the handover are recorded.
 
-AgroTrust is a digital platform that gives smallholder farmers **verified, direct access** to agricultural inputs such as fertilizer. Farmers are verified **in person by a government local admin**, sign in with their own secure account, and every step from supplier to farmer is tracked.
+## Problem
 
----
+Fertilizer often reaches farmers through brokers. Brokers stockpile it and resell it at a higher price. There is no shared record of who was entitled to how much, who paid the supplier, or who collected the goods.
 
-## 🧩 Problem Statement
+That produces three failures:
 
-In Ethiopia, brokers exploit the agricultural input supply system by stockpiling or reselling inputs like fertilizers at inflated prices. The lack of a digital distribution system results in:
+- Farmers with a rightful share are crowded out.
+- The price the farmer pays is not the official price.
+- Government and suppliers cannot see where a bag went, so shortages and diversion stay invisible.
 
-- Unfair access for smallholder farmers
-- Inflated input costs
-- Loss of trust and transparency
+## Solution
 
-## 💡 Solution
+AgroTrust gives each verified farmer a personal entitlement and follows that entitlement until the farmer collects the input.
 
-AgroTrust enables **verified, direct access** to agricultural inputs. It provides:
+- A local admin confirms the farmer in person. The farmer then signs in with a phone number and a PIN.
+- An allocation rule sets how many kilograms that farmer may receive. A request above the remaining amount is refused.
+- The farmer pays the supplier by bank and brings the slip to the kebele. The local admin records the slip. Officials never take the cash.
+- The assigned distributor ships only what was paid. The local admin counts what arrived and hands it over against a one-time pickup code.
+- Every change is written with an audit record. Distributors see eligibility and quantities, not phone numbers.
+- Farmers and staff can use the service in English, Amharic, or Afaan Oromo. SMS tells the farmer when the request is approved, what to pay, when the goods are on the way, and when to collect.
 
-- ✅ Government-verified farmer accounts (in-person verification, secure PIN login)
-- ✅ Per-farmer entitlements, so nobody can take more than their share
-- ✅ Payment straight to the supplier, with no cash handled by officials
-- ✅ End-to-end traceability from supply lot to farmer handover
-- ✅ Transparent, tamper-evident audit logging
-- ✅ SMS updates to every farmer at every key step
-- ✅ Admin dashboards for analytics, shortages and fraud monitoring
+## How a delivery moves
 
----
+1. The national admin registers the season, the official price, the place, the center, and the farmer.
+2. The local admin verifies the farmer and issues a one-time activation code.
+3. The farmer requests a quantity in kilograms, within the remaining entitlement.
+4. The local admin approves the request and sends a requisition to the assigned distributor.
+5. The distributor accepts the kilograms, or reduces them, and records a lot and a shipment.
+6. The farmer pays the supplier. The local admin records the bank-slip number.
+7. The local admin receives the shipment and hands the input to the farmer after checking the pickup code.
 
-## 🔄 How It Works
+## Who uses it
 
-1. **Verify:** the farmer is in the government registry and verified **in person by the local admin**, who gives them an activation code to create their account.
-2. **Request:** the farmer requests the inputs they need, in the app or through the local admin (confirmed by an SMS code).
-3. **Approve:** the local admin checks the request against the farmer's information and entitlement.
-4. **Requisition:** the local admin sends the approved requests to the **assigned distributor** (government or private).
-5. **Distributor check:** the distributor verifies the information and accepts, adjusts or declines.
-6. **Pay:** the farmer pays by mobile money or bank directly to the supplier account.
-7. **Dispatch:** the distributor sends the paid inputs to the local center.
-8. **Receive:** the local admin confirms what arrived and the farmer is told where and when to collect.
-9. **Hand over:** the farmer collects the inputs using a one-time code.
+| Role | Responsibility |
+| --- | --- |
+| Farmer | Requests inputs, pays the supplier, and collects with the pickup code |
+| Local admin | Verifies farmers, approves requests, records the bank slip, receives stock, and hands goods over |
+| Distributor | Accepts requisitions and ships paid quantities with a lot and an arrival time |
+| Regional admin | Invites local admins and distributor staff, and watches centers in that region |
+| National admin | Sets seasons, prices, places, allocation rules, and the farmer registry |
+| Auditor | Reads payments, notifications, fraud flags, and the audit log |
 
-📱 **The farmer receives an SMS at every key step**: approved, accepted (with amount to pay), payment confirmed, on the way (with expected arrival), arrived (where, when and the pickup code), and collected.
+## Security
 
----
+Farmers sign in with a phone number and a 6-digit PIN. Staff sign in with a password and an authenticator code. Access tokens are short-lived, refresh tokens rotate, and a sensitive change asks for the password and authenticator again. Staff accounts are created only from an invitation. A new national admin still needs a second national admin to approve the invitation.
 
-## 🎯 Expected Outcomes
+## Stack
 
-### 👨‍🌾 For Farmers
-- Transparent pricing and access
-- Direct purchase without brokers
-- A trustworthy government system, with updates in Amharic, Afaan Oromo or English
-
-### 🏛️ For Government
-- End-to-end traceability of inputs
-- Elimination of black-market interference
-- Real-time insight into shortages and distribution
-
----
-
-## 🔐 Authentication and Security
-
-- **Farmers:** phone number + 6-digit PIN, SMS code on a new device.
-- **Staff:** password + mandatory authenticator-app code (TOTP).
-- **JWT access tokens** (10-15 minutes) with **rotating refresh tokens**, revocable sessions, and step-up re-authentication for sensitive actions.
-- Staff accounts are created only by **invitation** from a higher admin, with two-person approval for admin roles.
-- Role- and scope-based access control, enforced in guards and in the data layer.
-- Hash-chained audit log, strict rate limiting, and data minimization (distributors never see phone numbers).
-
-
-
-## 🛠️ Tech Stack
-
-| Component | Technology |
-|---|---|
-| Frontend | React PWA (English, Amharic, Afaan Oromo) |
-| Backend | NestJS (modular monolith) |
-| Database | MongoDB (replica set, transactions) |
-| Authentication | JWT (EdDSA) + refresh rotation, Argon2id, TOTP |
-| Notifications | SMS gateway (Ethio Telecom or licensed aggregator) |
-| Payments | Mobile money / bank gateway |
-| Ops | Docker, CI/CD, Prometheus, in-country hosting |
-<<<<<<< HEAD
+| Part | Choice |
+| --- | --- |
+| Frontend | React, English, Amharic, and Afaan Oromo |
+| Backend | NestJS |
+| Database | MongoDB replica set, with transactions |
+| Authentication | JWT (EdDSA), rotating refresh tokens, Argon2id, TOTP |
+| Messages | SMS gateway. A mock gateway is the default in development |
+| Payment | Bank slip recorded by the local admin. There is no bank gateway |
+| Local run | Docker Compose for MongoDB and the API |
 
 ---
 
-
-
-  Name : Mulualem Mekonin
-  Id :CTC-3181-26
-
-
+Name: Mulualem Mekonin  
+Id: CTC-3181-26

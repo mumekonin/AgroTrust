@@ -49,6 +49,7 @@ export function DistributorsPage() {
               <thead>
                 <tr>
                   <th>{t.adminDistributors}</th>
+                  <th>{t.adminId}</th>
                   <th>{t.adminCode}</th>
                   <th>{t.adminType}</th>
                   <th>{t.adminRegionsServed}</th>
@@ -59,6 +60,7 @@ export function DistributorsPage() {
                 {visible.map((row) => (
                   <tr key={row.id}>
                     <td className="admin__strong">{row.name}</td>
+                    <td className="admin__strong">{row.id}</td>
                     <td>{row.code}</td>
                     <td>{row.type === 'government' ? t.adminGovernment : t.adminPrivate}</td>
                     <td>{row.regionCount}</td>

@@ -113,7 +113,7 @@ describe('AllocationsService rules', () => {
     ).rejects.toMatchObject({ code: ErrorCode.VALIDATION_FAILED });
   });
 
-  it('refuses the author as the second approver', async () => {
+  it('refuses a regional admin approving a national rule', async () => {
     rules.findById.mockReturnValue({
       exec: vi.fn().mockResolvedValue({
         createdBy: new Types.ObjectId(userId),

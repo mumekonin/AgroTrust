@@ -125,9 +125,6 @@ export class AllocationsService {
     if (rule.approvedBy) {
       throw new AppException(ErrorCode.CONFLICT, 'This rule is already approved', 409);
     }
-    if (String(rule.createdBy) === principal.userId) {
-      throw new AppException(ErrorCode.FORBIDDEN, 'A second admin must approve', 403);
-    }
     if (rule.regionId) this.assertAdmin(principal, String(rule.regionId));
     else if (!principal.roles.includes(Role.NATIONAL_ADMIN)) {
       throw new AppException(ErrorCode.FORBIDDEN, 'A national admin must approve a national rule', 403);

@@ -272,6 +272,21 @@ export interface NoticeRow {
   createdAt?: string
 }
 
+export interface AdminPrice {
+  id: string
+  inputId: string
+  code: string
+  unitPriceSantimPerKg: number
+  subsidySantimPerKg: number
+  approved: boolean
+}
+
+export function loadAdminPrices(seasonId: string): Promise<AdminPrice[]> {
+  return apiRequest<{ items: AdminPrice[] }>(`/admin/prices?seasonId=${encodeURIComponent(seasonId)}`).then(
+    (page) => page.items,
+  )
+}
+
 export function loadCatalog(seasonId: string): Promise<CatalogItem[]> {
   return apiRequest<
     List<{

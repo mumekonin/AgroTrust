@@ -13,6 +13,7 @@ export function DistributorActions({ onSaved }: { onSaved: () => void }) {
   const [seasons, setSeasons] = useState<SeasonRow[]>([])
   const [centers, setCenters] = useState<CenterRow[]>([])
   const [tick, setTick] = useState(0)
+  const [savedIds, setSavedIds] = useState<string[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -44,6 +45,18 @@ export function DistributorActions({ onSaved }: { onSaved: () => void }) {
     <>
       {error ? <p className="admin__error">{error}</p> : null}
       {note ? <p className="admin__note">{note}</p> : null}
+      {savedIds.length > 0 ? (
+        <section className="admin__card">
+          <h2>{t.adminCopyId}</h2>
+          <ul className="admin__list">
+            {savedIds.map((id) => (
+              <li key={id}>
+                <strong>{id}</strong>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <section className="admin__card">
         <h2>{t.adminAssignments}</h2>
         {assignments.length === 0 ? <p className="admin__empty">{t.adminEmpty}</p> : null}
@@ -67,15 +80,18 @@ export function DistributorActions({ onSaved }: { onSaved: () => void }) {
             event.preventDefault()
             const form = new FormData(event.currentTarget)
             const regions = splitIds(String(form.get('serviceRegionIds') ?? '')) ?? []
-            void save(() => adminWrite('/admin/distributors', 'POST', {
-              code: String(form.get('code') ?? '').trim(),
-              name: String(form.get('name') ?? '').trim(),
-              type: String(form.get('type')),
-              licenceNo: String(form.get('licenceNo') ?? '').trim(),
-              contact: { phone: String(form.get('phone') ?? '').trim(), email: String(form.get('email') ?? '').trim() || undefined },
-              serviceRegionIds: regions,
-              status: String(form.get('status') || 'active'),
-            }).then(() => undefined))
+            void save(async () => {
+              const created = await adminWrite<{ id: string }>('/admin/distributors', 'POST', {
+                code: String(form.get('code') ?? '').trim(),
+                name: String(form.get('name') ?? '').trim(),
+                type: String(form.get('type')),
+                licenceNo: String(form.get('licenceNo') ?? '').trim(),
+                contact: { phone: String(form.get('phone') ?? '').trim(), email: String(form.get('email') ?? '').trim() || undefined },
+                serviceRegionIds: regions,
+                status: String(form.get('status') || 'active'),
+              })
+              setSavedIds((current) => [created.id, ...current])
+            })
           }}>
             <h2>{t.adminCreateDistributor}</h2>
             <label>{t.adminCode}<input name="code" required /></label>

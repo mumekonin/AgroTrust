@@ -3,7 +3,7 @@ import { Role } from '../../common/enums/role.enum.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import { CurrentPrincipal, RequireStepUp, Roles, type Principal } from '../../common/guards/auth.decorator.js';
-import { CreateInputDto, CreatePriceDto, ListCatalogQuery, UpdateInputDto } from '../dto/catalog.dto.js';
+import { CreateInputDto, CreatePriceDto, ListCatalogQuery, ListPriceQuery, UpdateInputDto } from '../dto/catalog.dto.js';
 import { CatalogService } from '../service/catalog.service.js';
 
 @Controller('catalog')
@@ -35,6 +35,12 @@ export class AdminCatalogController {
   @Patch('inputs/:id')
   updateInput(@Param('id') id: string, @Body() dto: UpdateInputDto) {
     return this.catalog.updateInput(id, dto);
+  }
+
+  @Roles(Role.NATIONAL_ADMIN)
+  @Get('prices')
+  listPrices(@Query() query: ListPriceQuery) {
+    return this.catalog.listPrices(query.seasonId);
   }
 
   @Roles(Role.NATIONAL_ADMIN)

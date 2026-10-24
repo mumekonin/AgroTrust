@@ -116,6 +116,43 @@ export class CatalogService {
     return toInputResponse(doc);
   }
 
+  async listPrices(seasonId: string): Promise<{
+    items: Array<{
+      id: string;
+      inputId: string;
+      code: string;
+      unitPriceSantimPerKg: number;
+      subsidySantimPerKg: number;
+      approved: boolean;
+    }>;
+  }> {
+    if (!Types.ObjectId.isValid(seasonId)) {
+      throw new AppException(ErrorCode.VALIDATION_FAILED, 'Invalid season');
+    }
+    const docs = await this.prices
+      .find({ seasonId: new Types.ObjectId(seasonId) })
+      .sort({ effectiveFrom: -1 })
+      .limit(100)
+      .lean()
+      .exec();
+    const inputs = await this.inputs
+      .find({ _id: { $in: docs.map((doc) => doc.inputId) } })
+      .select({ code: 1 })
+      .lean()
+      .exec();
+    const codes = new Map(inputs.map((input) => [String(input._id), input.code]));
+    return {
+      items: docs.map((doc) => ({
+        id: String(doc._id),
+        inputId: String(doc.inputId),
+        code: codes.get(String(doc.inputId)) ?? '',
+        unitPriceSantimPerKg: doc.unitPriceSantimPerKg,
+        subsidySantimPerKg: doc.subsidySantimPerKg,
+        approved: Boolean(doc.approvedBy),
+      })),
+    };
+  }
+
   async recordPrice(actorId: string, input: CreatePriceDto): Promise<PriceResponse> {
     if (input.subsidySantimPerKg > input.unitPriceSantimPerKg) {
       throw new AppException(ErrorCode.VALIDATION_FAILED, 'The subsidy cannot exceed the price');
