@@ -8,6 +8,19 @@ export function when(value: string | undefined, locale: string): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(date)
 }
 
+export function iso(value: string): string {
+  return new Date(value).toISOString()
+}
+
+export function santim(birr: string): number {
+  return Math.round(Number(birr) * 100)
+}
+
+export function splitIds(value: string): string[] | undefined {
+  const ids = value.split(/[\s,]+/).map((part) => part.trim()).filter(Boolean)
+  return ids.length ? ids : undefined
+}
+
 export function share(handedOverKg: number, requestedKg: number): number {
   if (requestedKg <= 0) return 0
   return Math.max(0, Math.min(100, Math.round((handedOverKg / requestedKg) * 100)))

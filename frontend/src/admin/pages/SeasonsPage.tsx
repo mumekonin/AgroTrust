@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { formatBirr } from '@/shared/format/quantity'
 import { useLang } from '@/shared/i18n/LangContext'
 import type { Strings } from '@/shared/i18n'
-import { loadPrices, loadSeasons, type PriceRow, type SeasonRow } from '../api'
+import { loadCatalog, loadSeasons, type CatalogItem, type SeasonRow } from '../api'
+import { SeasonActions } from '../components/SeasonActions'
 import { AdminFrame } from '../components/AdminFrame'
 import { localized, matches, problem, when } from '../text'
 
@@ -16,8 +17,9 @@ export function SeasonsPage() {
   const { locale, t } = useLang()
   const [query, setQuery] = useState('')
   const [seasonId, setSeasonId] = useState('')
+  const [tick, setTick] = useState(0)
   const [seasons, setSeasons] = useState<SeasonRow[] | null>(null)
-  const [prices, setPrices] = useState<PriceRow[] | null>(null)
+  const [catalog, setCatalog] = useState<CatalogItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -37,28 +39,30 @@ export function SeasonsPage() {
     return () => {
       cancelled = true
     }
-  }, [t.errorGeneric])
+  }, [t.errorGeneric, tick])
 
   useEffect(() => {
     if (!seasonId) return
     let cancelled = false
-    loadPrices(seasonId)
+    loadCatalog(seasonId)
       .then((rows) => {
-        if (!cancelled) setPrices(rows)
+        if (!cancelled) setCatalog(rows)
       })
       .catch((err: unknown) => {
         if (cancelled) return
         setError(problem(err, t.errorGeneric))
-        setPrices([])
+        setCatalog([])
       })
     return () => {
       cancelled = true
     }
-  }, [seasonId, t.errorGeneric])
+  }, [seasonId, t.errorGeneric, tick])
 
   const needle = query.trim().toLowerCase()
   const seasonRows = (seasons ?? []).filter((row) => matches(needle, row.name, row.code, row.status))
-  const priceRows = (prices ?? []).filter((row) => matches(needle, row.code, row.name.en, row.name.am, row.name.om))
+  const priceRows = (catalog ?? []).filter(
+    (row) => row.priceId && matches(needle, row.code, row.name.en, row.name.am, row.name.om),
+  )
   const selected = seasons?.find((item) => item.id === seasonId)
 
   return (
@@ -118,7 +122,7 @@ export function SeasonsPage() {
               {selected ? <p>{selected.name}</p> : null}
             </div>
           </div>
-          {prices?.length === 0 ? <p className="admin__empty">{t.adminEmpty}</p> : null}
+          {catalog?.length === 0 ? <p className="admin__empty">{t.adminEmpty}</p> : null}
           <ul className="admin__list">
             {priceRows.map((item) => (
               <li key={item.id}>
@@ -126,13 +130,13 @@ export function SeasonsPage() {
                   <strong>{localized(item.name, locale)}</strong>
                   <small>
                     {item.code}
-                    {item.subsidySantimPerKg > 0
-                      ? ` · ${t.adminSubsidy} ETB ${formatBirr(item.subsidySantimPerKg)}`
-                      : ''}
+                  {item.subsidySantimPerKg
+                    ? ` · ${t.adminSubsidy} ETB ${formatBirr(item.subsidySantimPerKg)}`
+                    : ''}
                   </small>
                 </div>
                 <span className="admin__price">
-                  ETB {formatBirr(item.unitPriceSantimPerKg)}
+                  ETB {formatBirr(item.unitPriceSantimPerKg ?? 0)}
                   <small>{t.adminPerKg}</small>
                 </span>
               </li>
@@ -140,6 +144,7 @@ export function SeasonsPage() {
           </ul>
         </section>
       </div>
+      <SeasonActions season={selected} catalog={catalog ?? []} onSaved={() => setTick((value) => value + 1)} />
     </AdminFrame>
   )
 }

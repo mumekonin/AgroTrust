@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLang } from '@/shared/i18n/LangContext'
 import { loadDistributors, type DistributorRow } from '../api'
 import { AdminFrame } from '../components/AdminFrame'
+import { DistributorActions } from '../components/DistributorActions'
 import { matches, problem } from '../text'
 
 export function DistributorsPage() {
@@ -9,6 +10,7 @@ export function DistributorsPage() {
   const [query, setQuery] = useState('')
   const [rows, setRows] = useState<DistributorRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [tick, setTick] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -24,7 +26,7 @@ export function DistributorsPage() {
     return () => {
       cancelled = true
     }
-  }, [t.errorGeneric])
+  }, [t.errorGeneric, tick])
 
   const needle = query.trim().toLowerCase()
   const visible = (rows ?? []).filter((row) =>
@@ -72,6 +74,7 @@ export function DistributorsPage() {
           </div>
         ) : null}
       </section>
+      <DistributorActions onSaved={() => setTick((value) => value + 1)} />
     </AdminFrame>
   )
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLang } from '@/shared/i18n/LangContext'
 import { loadCenters, loadRegions, type CenterRow, type GeoRow } from '../api'
 import { AdminFrame } from '../components/AdminFrame'
+import { CenterActions } from '../components/CenterActions'
 import { localized, matches, problem } from '../text'
 
 export function CentersPage() {
@@ -10,6 +11,7 @@ export function CentersPage() {
   const [rows, setRows] = useState<CenterRow[] | null>(null)
   const [places, setPlaces] = useState<GeoRow[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [tick, setTick] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -23,7 +25,7 @@ export function CentersPage() {
     return () => {
       cancelled = true
     }
-  }, [t.errorGeneric])
+  }, [t.errorGeneric, tick])
 
   const placeById = useMemo(() => new Map(places.map((place) => [place.id, place])), [places])
   const needle = query.trim().toLowerCase()
@@ -80,6 +82,7 @@ export function CentersPage() {
           </div>
         ) : null}
       </section>
+      <CenterActions onSaved={() => setTick((value) => value + 1)} />
     </AdminFrame>
   )
 }

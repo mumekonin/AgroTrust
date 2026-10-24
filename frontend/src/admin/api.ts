@@ -31,6 +31,7 @@ export interface SeasonRow {
   endsAt: string
   requestsOpenAt: string
   requestsCloseAt: string
+  requisitionCutoffAt: string
   paymentWindowDays: number
   pickupWindowDays: number
 }
@@ -217,6 +218,166 @@ export function loadVerifiedCount(): Promise<PageCount> {
     count: page.items.length,
     more: Boolean(page.nextCursor),
   }))
+}
+
+export interface CatalogItem {
+  id: string
+  code: string
+  name: { en: string; am: string; om: string }
+  category: string
+  packSizeKg: number
+  priceId?: string
+  unitPriceSantimPerKg?: number
+  subsidySantimPerKg?: number
+}
+
+export interface ShortageRow {
+  geoId: string
+  acceptedKg: number
+  receivedKg: number
+  requestedKg: number
+}
+
+export interface FarmerRow {
+  id: string
+  registryId: string
+  fullName: string
+  status: string
+  landHoldingHa: number
+  hasAccount: boolean
+}
+
+export interface AssignmentRow {
+  id: string
+  seasonId: string
+  localCenterId: string
+  inputCategory: string
+  distributorId: string
+  priority: number
+}
+
+export interface PaymentRow {
+  id: string
+  paymentNo: string
+  amountSantim: number
+  status: string
+  confirmedAt?: string
+}
+
+export interface NoticeRow {
+  id: string
+  event: string
+  status: string
+  language: string
+  createdAt?: string
+}
+
+export function loadCatalog(seasonId: string): Promise<CatalogItem[]> {
+  return apiRequest<
+    List<{
+      id: string
+      code: string
+      name: { en: string; am: string; om: string }
+      category: string
+      packSizeKg: number
+      price: { id: string; unitPriceSantimPerKg: number; subsidySantimPerKg: number } | null
+    }>
+  >(`/catalog?seasonId=${encodeURIComponent(seasonId)}&limit=100`).then((page) =>
+    page.items.map((item) => ({
+      id: item.id,
+      code: item.code,
+      name: item.name,
+      category: item.category,
+      packSizeKg: item.packSizeKg,
+      priceId: item.price?.id,
+      unitPriceSantimPerKg: item.price?.unitPriceSantimPerKg,
+      subsidySantimPerKg: item.price?.subsidySantimPerKg,
+    })),
+  )
+}
+
+export function loadShortages(seasonId?: string): Promise<{ date: string; items: ShortageRow[] }> {
+  const params = new URLSearchParams()
+  if (seasonId) params.set('seasonId', seasonId)
+  const query = params.toString()
+  return apiRequest(`/admin/analytics/shortages${query ? `?${query}` : ''}`)
+}
+
+export function loadGeo(parentId?: string): Promise<List<GeoRow & { type: string; parentId?: string }>> {
+  const params = new URLSearchParams({ limit: '100' })
+  if (parentId) params.set('parentId', parentId)
+  return apiRequest(`/geo?${params}`)
+}
+
+export function loadFarmers(status?: string): Promise<List<FarmerRow>> {
+  const params = new URLSearchParams({ limit: '100' })
+  if (status) params.set('status', status)
+  return apiRequest<
+    List<{
+      id: string
+      registryId: string
+      fullName: string
+      status: string
+      landHoldingHa: number
+      userId?: string
+      contact?: { phone: string }
+      geo: { regionId: string }
+    }>
+  >(`/local-admin/farmers?${params}`).then((page) => ({
+    items: page.items.map((row) => ({
+      id: row.id,
+      registryId: row.registryId,
+      fullName: row.fullName,
+      status: row.status,
+      landHoldingHa: row.landHoldingHa,
+      hasAccount: Boolean(row.userId),
+    })),
+    nextCursor: page.nextCursor,
+  }))
+}
+
+export function loadAssignments(): Promise<List<AssignmentRow>> {
+  return apiRequest('/admin/distributor-assignments?limit=100')
+}
+
+export function loadPayments(): Promise<List<PaymentRow>> {
+  return apiRequest<
+    List<PaymentRow & { slipNo?: string; farmerId?: string; provider?: string }>
+  >('/admin/payments?limit=100').then((page) => ({
+    items: page.items.map((row) => ({
+      id: row.id,
+      paymentNo: row.paymentNo,
+      amountSantim: row.amountSantim,
+      status: row.status,
+      confirmedAt: row.confirmedAt,
+    })),
+    nextCursor: page.nextCursor,
+  }))
+}
+
+export function loadNotices(): Promise<List<NoticeRow>> {
+  return apiRequest<
+    List<NoticeRow & { phone?: string; body?: string }>
+  >('/admin/notifications?limit=100').then((page) => ({
+    items: page.items.map((row) => ({
+      id: row.id,
+      event: row.event,
+      status: row.status,
+      language: row.language,
+      createdAt: row.createdAt,
+    })),
+    nextCursor: page.nextCursor,
+  }))
+}
+
+export function loadRequisition(id: string): Promise<{
+  requisitionNo: string
+  status: string
+  requestCount: number
+  inputCategory: string
+  lines: Array<{ requestedKg: number; acceptedKg: number; paidKg: number }>
+}> {
+  return apiRequest(`/distributor/requisitions/${encodeURIComponent(id)}`)
 }
 
 interface SnapshotItem {

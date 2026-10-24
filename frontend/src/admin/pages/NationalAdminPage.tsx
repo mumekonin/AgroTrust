@@ -9,6 +9,7 @@ import {
   loadFraud,
   loadPipeline,
   loadRegionLines,
+  loadShortages,
   loadRegions,
   loadSeasons,
   loadVerifiedCount,
@@ -20,6 +21,7 @@ import {
   type Pipeline,
   type RegionLine,
   type SeasonRow,
+  type ShortageRow,
 } from '../api'
 import { AdminFrame } from '../components/AdminFrame'
 import { fraudLabel, localized, matches, problem, share, when } from '../text'
@@ -30,6 +32,7 @@ export function NationalAdminPage() {
   const [seasonId, setSeasonId] = useState('')
   const [pipeline, setPipeline] = useState<Pipeline | null>(null)
   const [regions, setRegions] = useState<RegionLine[] | null>(null)
+  const [shortages, setShortages] = useState<ShortageRow[] | null>(null)
   const [places, setPlaces] = useState<GeoRow[] | null>(null)
   const [seasons, setSeasons] = useState<SeasonRow[] | null>(null)
   const [centers, setCenters] = useState<CenterRow[] | null>(null)
@@ -71,9 +74,10 @@ export function NationalAdminPage() {
   useEffect(() => {
     if (!seasonId) return
     let cancelled = false
-    Promise.allSettled([loadPipeline(seasonId), loadRegionLines(seasonId)]).then(([pipelinePage, regionPage]) => {
+    Promise.allSettled([loadPipeline(seasonId), loadRegionLines(seasonId), loadShortages(seasonId)]).then(
+      ([pipelinePage, regionPage, shortagePage]) => {
       if (cancelled) return
-      const failed = [pipelinePage, regionPage].find((result) => result.status === 'rejected')
+      const failed = [pipelinePage, regionPage, shortagePage].find((result) => result.status === 'rejected')
       if (failed && failed.status === 'rejected') setError(problem(failed.reason, t.errorGeneric))
       setPipeline(
         pipelinePage.status === 'fulfilled'
@@ -92,6 +96,7 @@ export function NationalAdminPage() {
             },
       )
       setRegions(regionPage.status === 'fulfilled' ? regionPage.value.items : [])
+      setShortages(shortagePage.status === 'fulfilled' ? shortagePage.value.items : [])
     })
     return () => {
       cancelled = true
@@ -117,6 +122,13 @@ export function NationalAdminPage() {
   const flagRows = (flags ?? [])
     .filter((row) => matches(needle, fraudLabel(row.type, t.adminLedger), row.severity, row.status))
     .slice(0, 5)
+  const shortageRows = (shortages ?? [])
+    .map((row) => ({
+      ...row,
+      name: (centers ?? []).find((center) => center.id === row.geoId)?.name ?? t.adminUnknown,
+      shortKg: Math.max(0, row.acceptedKg - row.receivedKg),
+    }))
+    .filter((row) => matches(needle, row.name))
 
   return (
     <AdminFrame
@@ -271,6 +283,34 @@ export function NationalAdminPage() {
           </ul>
         </section>
       </div>
+      <section className="admin__card" aria-labelledby="admin-shortages">
+        <div className="admin__card-head">
+          <h2 id="admin-shortages">{t.adminShortages}</h2>
+        </div>
+        {shortageRows.length === 0 ? <p className="admin__empty">{t.adminEmpty}</p> : null}
+        {shortageRows.length > 0 ? (
+          <div className="admin__table-wrap">
+            <table className="admin__table">
+              <thead>
+                <tr>
+                  <th>{t.adminCenters}</th>
+                  <th>{t.adminColShortage}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shortageRows.map((row) => (
+                  <tr key={row.geoId}>
+                    <td className="admin__strong">{row.name}</td>
+                    <td>
+                      {formatKg(row.shortKg)} {t.farmerKg}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </section>
     </AdminFrame>
   )
 }

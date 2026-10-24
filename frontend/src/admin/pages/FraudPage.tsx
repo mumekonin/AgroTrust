@@ -4,7 +4,9 @@ import type { Strings } from '@/shared/i18n'
 import { Icon } from '@/shared/ui/Icon'
 import { loadFraud, type FraudRow } from '../api'
 import { AdminFrame } from '../components/AdminFrame'
+import { StepUpForm } from '../components/StepUpForm'
 import { fraudLabel, matches, problem, when } from '../text'
+import { adminWrite } from '../write'
 
 const FILTERS = ['', 'open', 'reviewing', 'resolved'] as const
 
@@ -27,6 +29,7 @@ export function FraudPage() {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('')
   const [rows, setRows] = useState<FraudRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [tick, setTick] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -42,7 +45,7 @@ export function FraudPage() {
     return () => {
       cancelled = true
     }
-  }, [filter, t.errorGeneric])
+  }, [filter, t.errorGeneric, tick])
 
   const needle = query.trim().toLowerCase()
   const visible = (rows ?? []).filter((row) =>
@@ -78,6 +81,9 @@ export function FraudPage() {
       ) : null}
       {rows === null ? <p className="admin__empty">{t.farmerLoading}</p> : null}
       <section className="admin__card">
+        <StepUpForm />
+      </section>
+      <section className="admin__card">
         {rows?.length === 0 ? <p className="admin__empty">{t.adminEmpty}</p> : null}
         <ul className="admin__alerts">
           {visible.map((flag) => (
@@ -92,10 +98,32 @@ export function FraudPage() {
                   {flag.createdAt ? ` · ${when(flag.createdAt, locale)}` : ''}
                 </small>
               </span>
-              <span
-                className={`admin__chip${flag.status === 'open' ? ' admin__chip--stop' : ''}${flag.status === 'reviewing' ? ' admin__chip--wait' : ''}`}
-              >
-                {statusLabel(flag.status, t)}
+              <span className="admin__flag-actions">
+                <span className={`admin__chip${flag.status === 'open' ? ' admin__chip--stop' : ''}${flag.status === 'reviewing' ? ' admin__chip--wait' : ''}`}>
+                  {statusLabel(flag.status, t)}
+                </span>
+                <button
+                  type="button"
+                  className="admin__text-btn"
+                  onClick={() => {
+                    void adminWrite(`/admin/fraud-flags/${flag.id}/resolve`, 'POST', { status: 'reviewing' })
+                      .then(() => setTick((value) => value + 1))
+                      .catch((err: unknown) => setError(problem(err, t.errorGeneric)))
+                  }}
+                >
+                  {t.adminReviewing}
+                </button>
+                <button
+                  type="button"
+                  className="admin__text-btn"
+                  onClick={() => {
+                    void adminWrite(`/admin/fraud-flags/${flag.id}/resolve`, 'POST', { status: 'resolved' })
+                      .then(() => setTick((value) => value + 1))
+                      .catch((err: unknown) => setError(problem(err, t.errorGeneric)))
+                  }}
+                >
+                  {t.adminResolved}
+                </button>
               </span>
             </li>
           ))}

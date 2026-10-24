@@ -13,6 +13,13 @@ import { DistributorsPage } from '@/admin/pages/DistributorsPage'
 import { CentersPage } from '@/admin/pages/CentersPage'
 import { FraudPage } from '@/admin/pages/FraudPage'
 import { AuditPage } from '@/admin/pages/AuditPage'
+import { PlacesPage } from '@/admin/pages/PlacesPage'
+import { AllocationsPage } from '@/admin/pages/AllocationsPage'
+import { FarmersPage } from '@/admin/pages/FarmersPage'
+import { PaymentsPage } from '@/admin/pages/PaymentsPage'
+import { NoticesPage } from '@/admin/pages/NoticesPage'
+import { InvitationsPage } from '@/admin/pages/InvitationsPage'
+import { OperationsPage } from '@/admin/pages/OperationsPage'
 
 export function Router() {
   return (
@@ -29,8 +36,15 @@ export function Router() {
         <Route path="/admin" element={<AdminShell />}>
           <Route index element={<NationalAdminPage />} />
           <Route path="seasons" element={<SeasonsPage />} />
+          <Route path="places" element={<PlacesPage />} />
+          <Route path="allocations" element={<AllocationsPage />} />
+          <Route path="farmers" element={<FarmersPage />} />
           <Route path="distributors" element={<DistributorsPage />} />
           <Route path="centers" element={<CentersPage />} />
+          <Route path="payments" element={<PaymentsPage />} />
+          <Route path="notifications" element={<NoticesPage />} />
+          <Route path="invitations" element={<InvitationsPage />} />
+          <Route path="operations" element={<OperationsPage />} />
           <Route path="fraud" element={<FraudPage />} />
           <Route path="audit" element={<AuditPage />} />
         </Route>
