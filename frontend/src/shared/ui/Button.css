@@ -31,6 +31,23 @@
   outline: none;
 }
 
+.at-btn--full-width {
+  width: 100%;
+}
+
+.at-btn--secondary {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.at-btn--secondary:hover,
+.at-btn--secondary:focus-visible {
+  background-color: #edebe4;
+  border-color: #cfccc2;
+  outline: none;
+}
+
 .at-btn--ghost {
   background-color: transparent;
   color: var(--color-accent-text);

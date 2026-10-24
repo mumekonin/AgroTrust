@@ -1,0 +1,30 @@
+.at-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
+  overflow: visible;
+}
+
+.at-icon--sm {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.at-icon--md {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.at-icon--lg {
+  width: 1.85rem;
+  height: 1.85rem;
+}
+
+.at-icon--xl {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.at-icon--fill {
+  fill: currentColor;
+}

@@ -62,3 +62,4 @@ node_modules/
 .env.*
 
 rule.md
+Frontend_design_and_folder_plan.md

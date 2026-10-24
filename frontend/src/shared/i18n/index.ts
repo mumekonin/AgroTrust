@@ -3,7 +3,7 @@ import { am } from './am'
 import { om } from './om'
 
 export type Locale = 'en' | 'am' | 'om'
-export type Strings = typeof en
+export type Strings = Record<keyof typeof en, string>
 
 export const locales: Record<Locale, Strings> = { en, am, om }
 

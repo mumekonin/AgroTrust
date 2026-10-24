@@ -77,6 +77,13 @@ body {
 :lang(am),
 [lang='am'] {
   font-family: var(--font-ethiopic);
+  line-height: 1.65;
+}
+
+:lang(am) .welcome__headline,
+:lang(am) .auth-card__title {
+  line-height: 1.35;
+  overflow-wrap: break-word;
 }
 
 img,

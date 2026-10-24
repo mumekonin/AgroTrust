@@ -1,20 +1,18 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
-import { PageShell } from '@/shared/layout/PageShell'
 import { WelcomePage } from '@/portal/pages/WelcomePage'
+import { FarmerLoginPage } from '@/auth/pages/FarmerLoginPage'
+import { StaffLoginPage } from '@/auth/pages/StaffLoginPage'
+import { ActivationPage } from '@/auth/pages/ActivationPage'
 
-/**
- * App router.
- * Page 1 only: the public welcome portal at /.
- * Auth and role shells will be added in subsequent pages.
- */
 export function Router() {
   return (
     <BrowserRouter>
-      <PageShell>
-        <Routes>
-          <Route path="/" element={<WelcomePage />} />
-        </Routes>
-      </PageShell>
+      <Routes>
+        <Route path="/" element={<WelcomePage />} />
+        <Route path="/auth/farmer" element={<FarmerLoginPage />} />
+        <Route path="/auth/staff" element={<StaffLoginPage />} />
+        <Route path="/auth/activate" element={<ActivationPage />} />
+      </Routes>
     </BrowserRouter>
   )
 }

@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -34,6 +35,10 @@ export function LangProvider({ children }: { children: ReactNode }) {
     setLocaleState(l)
   }, [])
 
+  useEffect(() => {
+    document.documentElement.lang = locale
+  }, [locale])
+
   const value = useMemo<LangContextValue>(
     () => ({ locale, t: locales[locale], labels: localeLabels, setLocale }),
     [locale, setLocale],
@@ -46,4 +51,10 @@ export function useLang(): LangContextValue {
   const ctx = useContext(LangContext)
   if (!ctx) throw new Error('useLang must be used inside LangProvider')
   return ctx
+}
+
+export function useTranslation() {
+  const ctx = useLang()
+  const t = (key: keyof Strings): string => (ctx.t[key] as string) || (key as string)
+  return { t, strings: ctx.t, locale: ctx.locale, setLocale: ctx.setLocale }
 }
