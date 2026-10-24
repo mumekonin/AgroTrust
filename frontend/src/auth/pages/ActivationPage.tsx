@@ -12,18 +12,15 @@ export function ActivationPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
 
-  // Form values
   const [phone, setPhone] = useState('')
   const [activationCode, setActivationCode] = useState('')
   const [pin, setPin] = useState('')
   const [confirmPin, setConfirmPin] = useState('')
 
-  // UI state
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  // Normalize phone for Ethiopia (+251...)
   const normalizePhone = (raw: string): string => {
     const cleaned = raw.replace(/[^\d+]/g, '')
     if (cleaned.startsWith('09') || cleaned.startsWith('07')) {
@@ -104,9 +101,8 @@ export function ActivationPage() {
       badgeText={t('kebeleBadge')}
     >
       <form onSubmit={handleSubmit} className="auth-form">
-        {/* Kebele verification reminder banner */}
         <div className="auth-callout">
-          <Icon name="info" size="sm" style={{ flexShrink: 0, marginTop: 2 }} />
+          <Icon name="info" size="sm" />
           <span>{t('activateNote')}</span>
         </div>
 
@@ -117,7 +113,6 @@ export function ActivationPage() {
           </div>
         )}
 
-        {/* Phone input */}
         <div className="auth-field">
           <label htmlFor="activate-phone" className="auth-label">
             {t('labelPhone')}
@@ -139,7 +134,6 @@ export function ActivationPage() {
           </div>
         </div>
 
-        {/* Activation Code (8 characters) */}
         <div className="auth-field">
           <label htmlFor="activation-code" className="auth-label">
             {t('labelActivationCode')}
@@ -154,8 +148,7 @@ export function ActivationPage() {
               placeholder={t('activationCodePlaceholder')}
               value={activationCode}
               onChange={(e) => setActivationCode(e.target.value.toUpperCase())}
-              className="auth-input"
-              style={{ letterSpacing: '0.12em', fontWeight: 600 }}
+              className="auth-input auth-input--code"
               disabled={loading}
               required
             />
@@ -163,7 +156,6 @@ export function ActivationPage() {
           <span className="auth-helper">{t('activationCodeHelper')}</span>
         </div>
 
-        {/* Set 6-digit PIN */}
         <div className="auth-field">
           <label className="auth-label">{t('labelNewPin')}</label>
           <PinInput
@@ -171,10 +163,11 @@ export function ActivationPage() {
             onChange={setPin}
             disabled={loading}
             error={Boolean(errorMessage && pin.length < 6)}
+            autoComplete="new-password"
+            label={t('labelNewPin')}
           />
         </div>
 
-        {/* Confirm PIN */}
         <div className="auth-field">
           <label className="auth-label">{t('labelConfirmPin')}</label>
           <PinInput
@@ -182,11 +175,12 @@ export function ActivationPage() {
             onChange={setConfirmPin}
             disabled={loading}
             error={Boolean(errorMessage && confirmPin.length > 0 && pin !== confirmPin)}
+            autoComplete="new-password"
+            label={t('labelConfirmPin')}
           />
           <span className="auth-helper">{t('confirmPinHelper')}</span>
         </div>
 
-        {/* Submit */}
         <Button
           type="submit"
           disabled={
@@ -197,11 +191,11 @@ export function ActivationPage() {
             confirmPin.length !== 6
           }
           fullWidth
+          aria-busy={loading}
         >
-          {loading ? t('btnActivate') + '...' : t('btnActivate')}
+          {t('btnActivate')}
         </Button>
 
-        {/* Footer links */}
         <div className="auth-links">
           <Link to="/auth/farmer" className="auth-link">
             {t('linkFarmerLogin')}

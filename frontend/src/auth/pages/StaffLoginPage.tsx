@@ -17,10 +17,7 @@ export function StaffLoginPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
 
-  // Step state: 'credentials' | 'mfa' | 'success'
   const [step, setStep] = useState<'credentials' | 'mfa' | 'success'>('credentials')
-
-  // Form values
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -29,7 +26,6 @@ export function StaffLoginPage() {
   const [newPassword, setNewPassword] = useState('')
   const [passwordChangeRequired, setPasswordChangeRequired] = useState(false)
 
-  // UI state
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -145,6 +141,8 @@ export function StaffLoginPage() {
               disabled={loading}
               error={Boolean(errorMessage)}
               autoFocus
+              mask={false}
+              label={t('labelTotpCode')}
             />
             <span className="auth-helper">{t('totpPlaceholder')}</span>
           </div>
@@ -169,8 +167,8 @@ export function StaffLoginPage() {
             </div>
           )}
 
-          <Button type="submit" disabled={loading || totpCode.length !== 6} fullWidth>
-            {loading ? t('btnVerify') + '...' : t('btnVerify')}
+          <Button type="submit" disabled={loading || totpCode.length !== 6} fullWidth aria-busy={loading}>
+            {t('btnVerify')}
           </Button>
 
           <Button
@@ -206,7 +204,6 @@ export function StaffLoginPage() {
           </div>
         )}
 
-        {/* Identifier input */}
         <div className="auth-field">
           <label htmlFor="staff-identifier" className="auth-label">
             {t('labelIdentifier')}
@@ -227,7 +224,6 @@ export function StaffLoginPage() {
           </div>
         </div>
 
-        {/* Password input */}
         <div className="auth-field">
           <label htmlFor="staff-password" className="auth-label">
             {t('labelPassword')}
@@ -241,7 +237,7 @@ export function StaffLoginPage() {
               placeholder={t('passwordPlaceholder')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={`auth-input ${errorMessage && !password ? 'auth-input--error' : ''}`}
+              className={`auth-input auth-input--with-toggle ${errorMessage && !password ? 'auth-input--error' : ''}`}
               disabled={loading}
               required
             />
@@ -250,23 +246,21 @@ export function StaffLoginPage() {
               className="auth-input-toggle"
               onClick={() => setShowPassword(!showPassword)}
               aria-label={showPassword ? t('hidePassword') : t('showPassword')}
-              tabIndex={-1}
             >
               <Icon name={showPassword ? 'visibility_off' : 'visibility'} size="sm" />
             </button>
           </div>
         </div>
 
-        {/* Submit */}
         <Button
           type="submit"
           disabled={loading || !identifier.trim() || !password}
           fullWidth
+          aria-busy={loading}
         >
-          {loading ? t('btnSignIn') + '...' : t('btnSignIn')}
+          {t('btnSignIn')}
         </Button>
 
-        {/* Footer links */}
         <div className="auth-links">
           <Link to="/auth/farmer" className="auth-link">
             {t('linkFarmerLogin')}

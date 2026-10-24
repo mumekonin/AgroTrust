@@ -17,20 +17,15 @@ export function FarmerLoginPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
 
-  // Step state: 'credentials' | 'otp' | 'success'
   const [step, setStep] = useState<'credentials' | 'otp' | 'success'>('credentials')
-
-  // Form values
   const [phone, setPhone] = useState('')
   const [pin, setPin] = useState('')
   const [otpCode, setOtpCode] = useState('')
   const [challengeId, setChallengeId] = useState('')
 
-  // UI state
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  // Normalize phone for Ethiopia (+251...)
   const normalizePhone = (raw: string): string => {
     const cleaned = raw.replace(/[^\d+]/g, '')
     if (cleaned.startsWith('09') || cleaned.startsWith('07')) {
@@ -145,12 +140,14 @@ export function FarmerLoginPage() {
               disabled={loading}
               error={Boolean(errorMessage)}
               autoFocus
+              mask={false}
+              label={t('labelOtpCode')}
             />
             <span className="auth-helper">{t('otpPlaceholder')}</span>
           </div>
 
-          <Button type="submit" disabled={loading || otpCode.length !== 6} fullWidth>
-            {loading ? t('btnVerify') + '...' : t('btnVerify')}
+          <Button type="submit" disabled={loading || otpCode.length !== 6} fullWidth aria-busy={loading}>
+            {t('btnVerify')}
           </Button>
 
           <Button
@@ -186,7 +183,6 @@ export function FarmerLoginPage() {
           </div>
         )}
 
-        {/* Phone input */}
         <div className="auth-field">
           <label htmlFor="farmer-phone" className="auth-label">
             {t('labelPhone')}
@@ -209,7 +205,6 @@ export function FarmerLoginPage() {
           <span className="auth-helper">{t('phoneExample')}</span>
         </div>
 
-        {/* 6-digit PIN */}
         <div className="auth-field">
           <label className="auth-label">{t('labelPin')}</label>
           <PinInput
@@ -217,25 +212,25 @@ export function FarmerLoginPage() {
             onChange={setPin}
             disabled={loading}
             error={Boolean(errorMessage && pin.length < 6)}
+            autoComplete="current-password"
           />
           <span className="auth-helper">{t('pinPlaceholder')}</span>
         </div>
 
-        {/* Submit */}
         <Button
           type="submit"
           disabled={loading || !phone || pin.length !== 6}
           fullWidth
+          aria-busy={loading}
         >
-          {loading ? t('btnSignIn') + '...' : t('btnSignIn')}
+          {t('btnSignIn')}
         </Button>
 
-        {/* Footer links */}
         <div className="auth-links">
           <Link to="/auth/activate" className="auth-link">
             {t('linkActivate')}
           </Link>
-          <Link to="/auth/staff" className="auth-link" style={{ color: 'var(--color-text-subtle)' }}>
+          <Link to="/auth/staff" className="auth-link auth-link--quiet">
             {t('linkStaffLogin')}
           </Link>
         </div>

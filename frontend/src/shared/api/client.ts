@@ -61,8 +61,18 @@ export function createIdempotencyKey(): string {
   return 'idemp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10)
 }
 
-/** In-memory access token storage (design §2.2 / §4.B.6) */
+const CSRF_KEY = 'agrotrust-csrf'
+
 let currentAccessToken: string | null = null
+let currentCsrfToken: string | null = readStoredCsrf()
+
+function readStoredCsrf(): string | null {
+  try {
+    return sessionStorage.getItem(CSRF_KEY)
+  } catch {
+    return null
+  }
+}
 
 export function setAccessToken(token: string | null) {
   currentAccessToken = token
@@ -70,6 +80,63 @@ export function setAccessToken(token: string | null) {
 
 export function getAccessToken(): string | null {
   return currentAccessToken
+}
+
+export function setCsrfToken(token: string | null) {
+  currentCsrfToken = token
+  try {
+    if (token) sessionStorage.setItem(CSRF_KEY, token)
+    else sessionStorage.removeItem(CSRF_KEY)
+  } catch {
+    return
+  }
+}
+
+function decodePayload(token: string): Record<string, unknown> | null {
+  const part = token.split('.')[1]
+  if (!part) return null
+  try {
+    const padded = part.replace(/-/g, '+').replace(/_/g, '/')
+    const json = atob(padded.padEnd(padded.length + ((4 - (padded.length % 4)) % 4), '='))
+    const parsed: unknown = JSON.parse(json)
+    if (!parsed || typeof parsed !== 'object') return null
+    return parsed as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+export function readAccessRole(): string | null {
+  if (!currentAccessToken) return null
+  const role = decodePayload(currentAccessToken)?.role
+  return typeof role === 'string' ? role : null
+}
+
+function accessTokenFresh(): boolean {
+  if (!currentAccessToken) return false
+  const exp = decodePayload(currentAccessToken)?.exp
+  if (typeof exp !== 'number') return true
+  return exp * 1000 > Date.now() + 5_000
+}
+
+export async function restoreSession(): Promise<boolean> {
+  if (accessTokenFresh()) return true
+  setAccessToken(null)
+  if (!currentCsrfToken) return false
+  try {
+    const session = await apiRequest<{ accessToken: string; csrfToken: string }>('/auth/refresh', {
+      method: 'POST',
+      headers: { 'x-csrf-token': currentCsrfToken },
+      body: JSON.stringify({}),
+    })
+    setAccessToken(session.accessToken)
+    setCsrfToken(session.csrfToken)
+    return true
+  } catch {
+    setAccessToken(null)
+    setCsrfToken(null)
+    return false
+  }
 }
 
 export async function apiRequest<T>(

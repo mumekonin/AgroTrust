@@ -19,6 +19,12 @@
   transform: scale(0.97);
 }
 
+.at-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .at-btn--primary {
   background-color: var(--color-accent);
   color: #0f1e13;

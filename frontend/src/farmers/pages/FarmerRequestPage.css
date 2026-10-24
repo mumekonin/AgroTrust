@@ -1,0 +1,40 @@
+.farmer-request__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.farmer-request__list li + li {
+  border-top: 1px solid #eeeae2;
+  padding-top: 0.9rem;
+}
+
+.farmer-request__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #172119;
+}
+
+.farmer-request__field input,
+.farmer-request__field select {
+  height: 2.75rem;
+  border: 1px solid #e4e0d6;
+  border-radius: 0.75rem;
+  padding: 0 0.8rem;
+  background: #fff;
+  color: #172119;
+  font: inherit;
+  font-weight: 600;
+}
+
+.farmer-request__field input:focus-visible,
+.farmer-request__field select:focus-visible {
+  outline: 2px solid #143026;
+  outline-offset: 2px;
+}

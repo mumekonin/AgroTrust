@@ -1,0 +1,33 @@
+.farmer-home__cta {
+  align-self: flex-start;
+}
+
+.farmer-home__cta a {
+  color: inherit;
+}
+
+.farmer-home__text-link {
+  color: #143026;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.farmer-home__allocation + .farmer-home__allocation,
+.farmer-home__list li + li {
+  border-top: 1px solid #eeeae2;
+  padding-top: 0.75rem;
+}
+
+.farmer-home__allocation h3 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.farmer-home__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

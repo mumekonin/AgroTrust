@@ -4,6 +4,7 @@ import {
   getDeviceLabel,
   getOrCreateDeviceId,
   setAccessToken,
+  setCsrfToken,
 } from '@/shared/api/client'
 
 export interface AccessSession {
@@ -56,6 +57,7 @@ export async function loginFarmer(phone: string, pin: string): Promise<LoginResu
   })
   if (isSession(result)) {
     setAccessToken(result.accessToken)
+    setCsrfToken(result.csrfToken)
   }
   return result
 }
@@ -75,6 +77,7 @@ export async function loginStaff(identifier: string, password: string): Promise<
   })
   if (isSession(result)) {
     setAccessToken(result.accessToken)
+    setCsrfToken(result.csrfToken)
   }
   return result
 }
@@ -94,6 +97,7 @@ export async function verifyLoginOtp(challengeId: string, code: string): Promise
   })
   if (isSession(result)) {
     setAccessToken(result.accessToken)
+    setCsrfToken(result.csrfToken)
   }
   return result
 }
@@ -120,6 +124,7 @@ export async function verifyLoginMfa(
   })
   if (isSession(result)) {
     setAccessToken(result.accessToken)
+    setCsrfToken(result.csrfToken)
   }
   return result
 }
@@ -146,6 +151,7 @@ export async function activateFarmer(params: {
     }),
   })
   setAccessToken(result.accessToken)
+  setCsrfToken(result.csrfToken)
   return result
 }
 
@@ -157,5 +163,6 @@ export async function logout(): Promise<void> {
     await apiRequest<void>('/auth/logout', { method: 'POST' })
   } finally {
     setAccessToken(null)
+    setCsrfToken(null)
   }
 }

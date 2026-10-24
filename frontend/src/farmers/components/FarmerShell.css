@@ -1,0 +1,208 @@
+.farmer {
+  min-height: 100dvh;
+  background: #f6f3ec;
+  color: #172119;
+}
+
+.farmer--loading {
+  display: grid;
+  place-items: center;
+  color: #667068;
+}
+
+.farmer a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.farmer__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1.25rem;
+  background: #143026;
+  color: #f7f4ee;
+}
+
+.farmer__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-weight: 700;
+  min-width: 0;
+}
+
+.farmer__mark {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.55rem;
+  background: #e6b325;
+  color: #143026;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.farmer__bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.farmer__signout {
+  height: 2.25rem;
+  padding: 0 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(247, 244, 238, 0.22);
+  color: #f7f4ee;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.farmer__signout:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.farmer__signout:focus-visible {
+  outline: 2px solid #e6b325;
+  outline-offset: 2px;
+}
+
+.farmer__nav {
+  display: flex;
+  gap: 1.25rem;
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 0.9rem 1.25rem 0;
+}
+
+.farmer__nav a {
+  color: #5c675e;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 2px solid transparent;
+}
+
+.farmer__nav a[aria-current='page'] {
+  color: #143026;
+  border-bottom-color: #e6b325;
+}
+
+.farmer__main {
+  width: min(48rem, 100%);
+  margin: 0 auto;
+  padding: 1.25rem 1.25rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.farmer__eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6d756e;
+}
+
+.farmer__title {
+  font-size: clamp(1.7rem, 3vw, 2.15rem);
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  color: #142119;
+}
+
+.farmer__hint,
+.farmer__empty,
+.farmer__note {
+  color: #667068;
+  line-height: 1.5;
+}
+
+.farmer__card {
+  background: #fff;
+  border: 1px solid #e4e0d6;
+  border-radius: 1rem;
+  padding: 1rem 1.05rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.farmer__card h2 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #142119;
+}
+
+.farmer__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.farmer__meta {
+  color: #667068;
+  font-size: 0.88rem;
+}
+
+.farmer__status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #e7f2ea;
+  color: #143026;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.farmer__status--stop {
+  background: #f8ece6;
+  color: #8a3b22;
+}
+
+.farmer__qty {
+  font-weight: 700;
+  color: #143026;
+}
+
+.farmer .at-btn--primary {
+  background: #143026;
+  color: #f7f4ee;
+}
+
+.farmer .at-btn--primary:hover,
+.farmer .at-btn--primary:focus-visible {
+  background: #1c4634;
+  box-shadow: none;
+}
+
+.farmer .at-btn--secondary {
+  background: #fff;
+  color: #143026;
+  border: 1px solid #e4e0d6;
+}
+
+.farmer__error {
+  background: #f8ece6;
+  color: #8a3b22;
+  border-radius: 0.75rem;
+  padding: 0.75rem 0.9rem;
+}
+
+@media (max-width: 640px) {
+  .farmer__bar {
+    align-items: flex-start;
+  }
+
+  .farmer__bar-actions {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+}

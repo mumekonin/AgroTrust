@@ -1,61 +1,56 @@
 .pin-input-container {
   position: relative;
   width: 100%;
-  cursor: pointer;
-  display: flex;
-  justify-content: center;
+  cursor: text;
 }
 
 .pin-hidden-input {
   position: absolute;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100%;
   height: 100%;
   opacity: 0;
-  pointer-events: auto;
-  cursor: pointer;
+  cursor: text;
   z-index: 2;
 }
 
 .pin-slots {
   display: flex;
-  gap: var(--space-2);
-  justify-content: center;
+  gap: 0.45rem;
   width: 100%;
 }
 
 .pin-slot {
-  width: 48px;
-  height: 52px;
+  flex: 1;
+  min-width: 0;
+  height: 3.25rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--color-surface-raise);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  font-size: 1.5rem;
+  background: #fff;
+  border: 1px solid #e4e0d6;
+  border-radius: 0.75rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  color: var(--color-brand);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  color: #143026;
 }
 
 .pin-slot--current {
-  border-color: var(--color-brand);
-  box-shadow: 0 0 0 3px rgba(27, 67, 39, 0.15);
+  border-color: #143026;
+  box-shadow: 0 0 0 3px rgba(20, 48, 38, 0.12);
 }
 
 .pin-slot--filled {
-  border-color: var(--color-brand);
-  background-color: rgba(27, 67, 39, 0.04);
+  border-color: #143026;
+  background: #f4f8f5;
 }
 
 .pin-input--error .pin-slot {
-  border-color: #b3261e;
+  border-color: #9f2d22;
 }
 
 .pin-input--error .pin-slot--current {
-  box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.15);
+  box-shadow: 0 0 0 3px rgba(159, 45, 34, 0.12);
 }
 
 .pin-input--disabled {
