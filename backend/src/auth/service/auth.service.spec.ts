@@ -91,6 +91,9 @@ describe('AuthService', () => {
     otp.issue.mockResolvedValue({ id: 'ch-1', code: '000000' });
     lockout.recordFailure.mockResolvedValue(1);
     lockout.recordSuccess.mockResolvedValue(undefined);
+    config.get.mockImplementation((key: string) =>
+      key === 'SMS_GATEWAY' ? 'http' : 'pepper-pepper-pepper-pepper-pepper',
+    );
     users.markLogin.mockResolvedValue(undefined);
     sessions.create.mockResolvedValue({
       sid: 'sid-1',
@@ -333,6 +336,23 @@ describe('AuthService', () => {
 
     expect(result).toEqual({ otpRequired: true, challengeId: 'ch-1' });
     expect(sessions.create).not.toHaveBeenCalled();
+  });
+
+  it('opens the farmer session without an SMS code when the gateway is the mock', async () => {
+    users.findByPhone.mockResolvedValue(farmer);
+    devices.isTrusted.mockResolvedValue(false);
+    config.get.mockImplementation((key: string) =>
+      key === 'SMS_GATEWAY' ? 'mock' : 'pepper-pepper-pepper-pepper-pepper',
+    );
+
+    const result = await service.login(loginInput());
+
+    expect(otp.issue).not.toHaveBeenCalled();
+    expect(devices.trust).toHaveBeenCalledWith(farmer.id, 'device-1', undefined);
+    expect(sessions.create).toHaveBeenCalled();
+    expect(result).toEqual(
+      expect.objectContaining({ accessToken: 'access-1', refreshToken: 'refresh-1' }),
+    );
   });
 
   it('revokes the current session on logout and every session on logout-all', async () => {

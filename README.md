@@ -1,10 +1,10 @@
 # AgroTrust
 
-AgroTrust is a system for delivering fertilizer and other agricultural inputs to smallholder farmers in Ethiopia. A local admin verifies each farmer in person. From that point, the request, the payment, the shipment, and the handover are recorded.
+AgroTrust records the delivery of fertilizer and other agricultural inputs to smallholder farmers in Ethiopia. A local admin verifies each farmer in person. From that point, the entitlement, the request, the bank slip, the shipment, and the handover stay on one record.
 
 ## Problem
 
-Fertilizer often reaches farmers through brokers. Brokers stockpile it and resell it at a higher price. There is no shared record of who was entitled to how much, who paid the supplier, or who collected the goods.
+Fertilizer often reaches farmers through brokers. Brokers stockpile it and resell it above the official price. There is no shared record of who was entitled to how much, who paid the supplier, or who collected the goods.
 
 That produces three failures:
 
@@ -29,9 +29,10 @@ AgroTrust gives each verified farmer a personal entitlement and follows that ent
 2. The local admin verifies the farmer and issues a one-time activation code.
 3. The farmer requests a quantity in kilograms, within the remaining entitlement.
 4. The local admin approves the request and sends a requisition to the assigned distributor.
-5. The distributor accepts the kilograms, or reduces them, and records a lot and a shipment.
+5. The distributor accepts the kilograms, or reduces them with a reason.
 6. The farmer pays the supplier. The local admin records the bank-slip number.
-7. The local admin receives the shipment and hands the input to the farmer after checking the pickup code.
+7. The distributor ships the paid quantity, with a lot and an arrival time.
+8. The local admin counts the delivery and hands the input to the farmer after checking the pickup code.
 
 ## Who uses it
 
@@ -43,6 +44,18 @@ AgroTrust gives each verified farmer a personal entitlement and follows that ent
 | Regional admin | Invites local admins and distributor staff, and watches centers in that region |
 | National admin | Sets seasons, prices, places, allocation rules, and the farmer registry |
 | Auditor | Reads payments, notifications, fraud flags, and the audit log |
+
+## Screens
+
+The pages below follow one delivery, from the public entrance to the national overview.
+
+![Welcome](docs/screenshots/welcomepage.png)
+
+![distributor](docs/screenshots/distributor.png)
+
+![Local admin](docs/screenshots/localadmin.png)
+
+![National overview](docs/screenshots/natianalOverviwe.png)
 
 ## Security
 
@@ -59,6 +72,24 @@ Farmers sign in with a phone number and a 6-digit PIN. Staff sign in with a pass
 | Messages | SMS gateway. A mock gateway is the default in development |
 | Payment | Bank slip recorded by the local admin. There is no bank gateway |
 | Local run | Docker Compose for MongoDB and the API |
+
+## Run locally
+
+Start MongoDB and the API:
+
+```bash
+docker compose up --build
+```
+
+In a second terminal, start the web app:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173). The API listens on port 3000.
 
 ---
 

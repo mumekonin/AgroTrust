@@ -68,7 +68,7 @@ export class AuthService {
     private readonly otp: OtpService,
     private readonly totp: TotpService,
     @InjectConnection() private readonly connection: Connection,
-    config: ConfigService<Env, true>,
+    private readonly config: ConfigService<Env, true>,
   ) {
     this.pepper = config.get('AUTH_PEPPER', { infer: true });
   }
@@ -168,12 +168,15 @@ export class AuthService {
     }
 
     if (!(await this.devices.isTrusted(user.id, parsed.deviceId))) {
-      const challenge = await this.otp.issue({
-        userId: user.id,
-        phone: user.phone,
-        purpose: OtpPurpose.LOGIN_NEW_DEVICE,
-      });
-      return { otpRequired: true, challengeId: challenge.id };
+      if (this.config.get('SMS_GATEWAY', { infer: true }) !== 'mock') {
+        const challenge = await this.otp.issue({
+          userId: user.id,
+          phone: user.phone,
+          purpose: OtpPurpose.LOGIN_NEW_DEVICE,
+        });
+        return { otpRequired: true, challengeId: challenge.id };
+      }
+      await this.devices.trust(user.id, parsed.deviceId, input.deviceLabel?.trim());
     }
 
     await this.lockout.recordSuccess({ identifierHash, ip, userId: user.id });
