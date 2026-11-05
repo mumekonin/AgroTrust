@@ -384,6 +384,7 @@ export class RequestsService {
           );
         }
         const now = new Date();
+        const assisted = input.channel === RequestChannel.ASSISTED;
         const requestNo = await this.nextRequestNo(input.prepared.seasonCode, session);
         const [doc] = await this.requests.create(
           [
@@ -402,7 +403,9 @@ export class RequestsService {
               totalSantim: input.prepared.totalSantim,
               subsidySantim: input.prepared.subsidySantim,
               payableSantim: input.prepared.payableSantim,
-              status: RequestStatus.SUBMITTED,
+              status: assisted ? RequestStatus.APPROVED : RequestStatus.SUBMITTED,
+              reviewedBy: assisted ? objectId(input.principal.userId, 'Invalid user') : undefined,
+              reviewedAt: assisted ? now : undefined,
               waitlisted: false,
               statusHistory: [
                 {
@@ -410,6 +413,15 @@ export class RequestsService {
                   at: now,
                   actorId: objectId(input.principal.userId, 'Invalid user'),
                 },
+                ...(assisted
+                  ? [
+                      {
+                        status: RequestStatus.APPROVED,
+                        at: now,
+                        actorId: objectId(input.principal.userId, 'Invalid user'),
+                      },
+                    ]
+                  : []),
               ],
               channel: input.channel,
               submittedBy: {

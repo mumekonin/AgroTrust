@@ -36,8 +36,10 @@ describe('farmer registry rules', () => {
 });
 
 describe('FarmersService activation code', () => {
-  const farmers = { findById: vi.fn() };
+  const farmers = { findById: vi.fn(), exists: vi.fn(), find: vi.fn(), create: vi.fn() };
   const activations = { updateMany: vi.fn(), create: vi.fn() };
+  const geo = { getById: vi.fn() };
+  const centers = { getById: vi.fn() };
   const config = { get: vi.fn(() => 'pepper-pepper-pepper-pepper-pepper') };
   const service = new FarmersService(
     farmers as never,
@@ -47,7 +49,8 @@ describe('FarmersService activation code', () => {
     {} as never,
     {} as never,
     {} as never,
-    {} as never,
+    geo as never,
+    centers as never,
     config as never,
   );
   const principal = {
@@ -96,5 +99,59 @@ describe('FarmersService activation code', () => {
       code: ErrorCode.CONFLICT,
     });
     expect(activations.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses a farmer outside the local admin center', async () => {
+    const local = {
+      userId: '64b0000000000000000000aa',
+      roles: [Role.LOCAL_ADMIN],
+      scope: { regionIds: [], woredaIds: [], localCenterIds: [regionId] },
+    };
+
+    await expect(
+      service.createByLocalAdmin(local as never, {
+        registryId: 'AT-DK-002',
+        fullName: 'Bekele Desta',
+        phone: '0911000003',
+        localCenterId: zoneId,
+        landHoldingHa: 1.5,
+      }),
+    ).rejects.toMatchObject({ code: ErrorCode.FORBIDDEN });
+    expect(centers.getById).not.toHaveBeenCalled();
+  });
+
+  it('registers a farmer at the local admin center', async () => {
+    const centerId = '64b000000000000000000055';
+    centers.getById.mockResolvedValue({
+      id: centerId,
+      status: 'active',
+      geo: { regionId, zoneId, woredaId, kebeleId },
+    });
+    farmers.exists.mockResolvedValue(null);
+    farmers.find.mockReturnValue({
+      select: () => ({ lean: () => ({ exec: vi.fn().mockResolvedValue([]) }) }),
+    });
+    geo.getById.mockResolvedValue({ type: 'kebele', path: [regionId, zoneId, woredaId] });
+    farmers.create.mockImplementation(async (doc: Record<string, unknown>) => ({ ...doc, _id: kebeleId }));
+
+    const result = await service.createByLocalAdmin(
+      {
+        userId: '64b0000000000000000000aa',
+        roles: [Role.LOCAL_ADMIN],
+        scope: { regionIds: [], woredaIds: [], localCenterIds: [centerId] },
+      } as never,
+      {
+        registryId: 'AT-DK-002',
+        fullName: 'Bekele Desta',
+        phone: '0911000003',
+        localCenterId: centerId,
+        landHoldingHa: 1.5,
+      },
+    );
+
+    expect(result.fullName).toBe('Bekele Desta');
+    expect(result.localCenterId).toBe(centerId);
+    expect(result.geo.kebeleId).toBe(kebeleId);
+    expect(result.status).toBe(FarmerStatus.UNLINKED);
   });
 });

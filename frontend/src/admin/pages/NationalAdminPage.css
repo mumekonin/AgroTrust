@@ -477,10 +477,14 @@
 
 .admin__submit {
   min-height: 2.55rem;
+  padding: 0 1.15rem;
+  border: 0;
   border-radius: 0.75rem;
   background: #143026;
   color: #f6f3ec;
+  font: inherit;
   font-weight: 700;
+  cursor: pointer;
 }
 
 .admin__submit:disabled {
@@ -507,6 +511,87 @@
   justify-content: flex-end;
   gap: 0.35rem 0.6rem;
   align-items: center;
+}
+
+.dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: rgba(18, 28, 22, 0.46);
+}
+
+.dialog__panel {
+  width: min(32rem, 100%);
+  max-height: min(40rem, calc(100vh - 2.5rem));
+  overflow: auto;
+  padding: 1.1rem 1.15rem 1.25rem;
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 18px 50px rgba(18, 28, 22, 0.22);
+}
+
+.dialog__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.dialog__bar h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.admin__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+  padding: 0.55rem;
+  border: 1px solid #e4dfd4;
+  border-radius: 0.9rem;
+  background: #fff;
+}
+
+.admin__toolbar button {
+  margin: 0;
+  min-height: 2.35rem;
+  padding: 0 0.95rem;
+  border: 1px solid #d5e0d8;
+  border-radius: 0.65rem;
+  background: #fff;
+  color: #143026;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.admin__toolbar button:hover:not(:disabled) {
+  border-color: #1f7a45;
+  background: #f4f8f5;
+}
+
+.admin__toolbar .admin__submit {
+  border-color: #143026;
+  background: #143026;
+  color: #f6f3ec;
+}
+
+.admin__toolbar .admin__submit:hover:not(:disabled) {
+  background: #1c4032;
+}
+
+.admin__toolbar button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 @media (max-width: 1100px) {

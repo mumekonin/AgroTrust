@@ -10,13 +10,6 @@ export function WelcomePage() {
 
   const portals = [
     {
-      id: 'portal-farmer',
-      icon: 'agriculture',
-      title: t.portalFarmerTitle,
-      desc: t.portalFarmerDesc,
-      to: '/auth/farmer',
-    },
-    {
       id: 'portal-local-admin',
       icon: 'person',
       title: t.portalLocalAdminTitle,

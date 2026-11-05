@@ -57,13 +57,6 @@ export function RegionalShell() {
           <nav className="admin__nav" aria-label={t.regionalRoleLabel}>
             {([
               ['/regional', true, 'adminInvitations', 'badge'],
-              ['/regional/overview', false, 'adminOverview', 'dashboard'],
-              ['/regional/centers', false, 'adminCenters', 'account_balance'],
-              ['/regional/distributors', false, 'adminDistributors', 'local_shipping'],
-              ['/regional/allocations', false, 'adminAllocations', 'agriculture'],
-              ['/regional/operations', false, 'adminOperations', 'local_shipping'],
-              ['/regional/fraud', false, 'adminFraud', 'error'],
-              ['/regional/audit', false, 'adminAudit', 'history'],
             ] as const).map(([to, end, label, icon]) => (
               <NavLink key={to} to={to} end={end} className={({ isActive }) => (isActive ? 'is-active' : undefined)}>
                 <Icon name={icon} size="sm" />

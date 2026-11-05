@@ -311,9 +311,6 @@ export function StaffLoginPage() {
         </Button>
 
         <div className="auth-links">
-          <Link to="/auth/farmer" className="auth-link">
-            {t('linkFarmerLogin')}
-          </Link>
           <Link to="/auth/accept" className="auth-link">
             {copy.inviteHave}
           </Link>

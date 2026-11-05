@@ -82,20 +82,33 @@ describe('CatalogService prices', () => {
     expect(prices.create).not.toHaveBeenCalled();
   });
 
-  it('records a price without an approver', async () => {
+  it('records the price as official', async () => {
     const result = await service.recordPrice(setter, body);
-    expect(result.approvedBy).toBeUndefined();
+    expect(result.approvedBy).toBe(setter);
     expect(result.setBy).toBe(setter);
     expect(result.unitPriceSantimPerKg).toBe(5000);
   });
 
-  it('refuses the author as the second approver', async () => {
-    prices.findById.mockReturnValue({
-      exec: vi.fn().mockResolvedValue({ setBy: new Types.ObjectId(setter), save: vi.fn() }),
-    });
-    await expect(service.approvePrice(setter, new Types.ObjectId().toString())).rejects.toMatchObject({
-      code: ErrorCode.FORBIDDEN,
-    });
+  it('lets the same national admin approve a price already saved', async () => {
+    const doc = {
+      _id: new Types.ObjectId(),
+      inputId: new Types.ObjectId(inputId),
+      seasonId: new Types.ObjectId(seasonId),
+      unitPriceSantimPerKg: 5000,
+      subsidySantimPerKg: 2000,
+      effectiveFrom: now,
+      setBy: new Types.ObjectId(setter),
+      reason: 'Ministry notice',
+      approvedBy: undefined as Types.ObjectId | undefined,
+      save: vi.fn(),
+    };
+    prices.findById.mockReturnValue({ exec: vi.fn().mockResolvedValue(doc) });
+
+    const result = await service.approvePrice(setter, doc._id.toString());
+
+    expect(String(doc.approvedBy)).toBe(setter);
+    expect(doc.save).toHaveBeenCalled();
+    expect(result.approvedBy).toBe(setter);
   });
 
   it('lets a different national admin approve', async () => {

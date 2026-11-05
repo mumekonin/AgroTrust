@@ -175,6 +175,7 @@ export class CatalogService {
       effectiveFrom,
       effectiveTo,
       setBy: new Types.ObjectId(actorId),
+      approvedBy: new Types.ObjectId(actorId),
       reason: input.reason.trim(),
     });
     return toPriceResponse(doc);
@@ -188,9 +189,6 @@ export class CatalogService {
     if (!doc) throw new AppException(ErrorCode.NOT_FOUND, 'Price not found', 404);
     if (doc.approvedBy) {
       throw new AppException(ErrorCode.CONFLICT, 'This price is already approved', 409);
-    }
-    if (String(doc.setBy) === actorId) {
-      throw new AppException(ErrorCode.FORBIDDEN, 'A second national admin must approve', 403);
     }
     doc.approvedBy = new Types.ObjectId(actorId);
     await doc.save();

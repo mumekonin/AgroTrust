@@ -40,6 +40,17 @@ export function loadFarmers(status?: string): Promise<List<FarmerRow>> {
   }))
 }
 
+export function createFarmer(body: {
+  registryId: string
+  fullName: string
+  phone: string
+  localCenterId: string
+  landHoldingHa: number
+  crops?: string[]
+}): Promise<FarmerRow> {
+  return localWrite<FarmerRow>('/local-admin/farmers', 'POST', body)
+}
+
 export function verifyFarmer(id: string): Promise<void> {
   return apiRequest(`/local-admin/farmers/${id}/verify`, { method: 'PATCH' })
 }

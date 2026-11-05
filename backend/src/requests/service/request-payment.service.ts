@@ -72,8 +72,10 @@ export class RequestPaymentService {
       .findOneAndUpdate(
         {
           _id: objectId(id, 'Invalid request'),
-          status: RequestStatus.ACCEPTED,
-          paymentDueAt: { $gt: paidAt },
+          $or: [
+            { status: RequestStatus.APPROVED },
+            { status: RequestStatus.ACCEPTED, paymentDueAt: { $gt: paidAt } },
+          ],
         },
         {
           $set: { status: RequestStatus.PAID, paidAt, payableSantim },

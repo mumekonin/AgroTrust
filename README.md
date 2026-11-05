@@ -32,7 +32,7 @@ That produces three failures:
 
 AgroTrust gives each verified farmer a personal entitlement and follows that entitlement until the farmer collects the input.
 
-- A local admin confirms the farmer in person. The farmer then signs in with a phone number and a PIN.
+- A local admin registers the farmer at the kebele and confirms them in person. The farmer does not sign in.
 - An allocation rule sets how many kilograms that farmer may receive. A request above the remaining amount is refused.
 - The farmer pays the supplier by bank and brings the slip to the kebele. The local admin records the slip. Officials never take the cash.
 - The assigned distributor ships only what was paid. The local admin counts what arrived and hands it over against a one-time pickup code.
@@ -47,14 +47,13 @@ AgroTrust gives each verified farmer a personal entitlement and follows that ent
 Season Setup ──► Farmer Verification ──► Request ──► Approval ──► Payment ──► Shipment ──► Handover
 ```
 
-1. The national admin registers the season, the official price, the place, the center, and the farmer.
-2. The local admin verifies the farmer and issues a one-time activation code.
-3. The farmer requests a quantity in kilograms, within the remaining entitlement.
-4. The local admin approves the request and sends a requisition to the assigned distributor.
-5. The distributor accepts the kilograms, or reduces them with a reason.
-6. The farmer pays the supplier. The local admin records the bank-slip number.
-7. The distributor ships the paid quantity, with a lot and an arrival time.
-8. The local admin counts the delivery and hands the input to the farmer after checking the pickup code.
+1. The national admin enters the official price for the season. That price is set for Ethiopia outside this system.
+2. The regional admin invites the local admin and the distributor staff for that region.
+3. The farmer meets the local admin. The local admin registers the farmer and verifies them in person.
+4. The farmer says which input they need. The local admin tells them the official price and the supplier’s bank account.
+5. The farmer pays the supplier by bank and returns with the slip. The local admin checks the slip. If it is not paid, nothing is ordered.
+6. Because it is paid, the local admin asks the distributor to send that quantity.
+7. The distributor sends the paid quantity. The local admin counts it and hands it to the farmer.
 
 ---
 
@@ -63,10 +62,10 @@ Season Setup ──► Farmer Verification ──► Request ──► Approval 
 | Role | Responsibility |
 |------|----------------|
 | 🧑‍🌾 **Farmer** | Requests inputs, pays the supplier, and collects with the pickup code |
-| 🏛️ **Local admin** | Verifies farmers, approves requests, records the bank slip, receives stock, and hands goods over |
+| 🏛️ **Local admin** | Registers and verifies farmers, approves requests, records the bank slip, receives stock, and hands goods over |
 | 🚚 **Distributor** | Accepts requisitions and ships paid quantities with a lot and an arrival time |
 | 🗺️ **Regional admin** | Invites local admins and distributor staff, and watches centers in that region |
-| 🏛️ **National admin** | Sets seasons, prices, places, allocation rules, and the farmer registry |
+| 🏛️ **National admin** | Enters the official price and the season. The price itself is set outside this system |
 | 🔍 **Auditor** | Reads payments, notifications, fraud flags, and the audit log |
 
 ---
@@ -87,7 +86,7 @@ The pages below follow one delivery, from the public entrance to the national ov
 
 ## 🔒 Security
 
-> Farmers sign in with a phone number and a 6-digit PIN. Staff sign in with a password and an authenticator code. Access tokens are short-lived, refresh tokens rotate, and a sensitive change asks for the password and authenticator again. Staff accounts are created only from an invitation. A new national admin still needs a second national admin to approve the invitation.
+> Farmers do not sign in. Staff sign in with a password and an authenticator code. Access tokens are short-lived, refresh tokens rotate, and a sensitive change asks for the password and authenticator again. Staff accounts are created only from an invitation. A new national admin still needs a second national admin to approve the invitation.
 
 ---
 

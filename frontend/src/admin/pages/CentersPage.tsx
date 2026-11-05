@@ -12,6 +12,8 @@ export function CentersPage() {
   const [places, setPlaces] = useState<GeoRow[]>([])
   const [error, setError] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
+  const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState<CenterRow | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -42,6 +44,11 @@ export function CentersPage() {
         </p>
       ) : null}
       {rows === null ? <p className="admin__empty">{t.farmerLoading}</p> : null}
+      <div className="admin__toolbar">
+        <button type="button" className="admin__submit" onClick={() => setCreating(true)}>
+          {t.adminAdd}
+        </button>
+      </div>
       <section className="admin__card">
         {rows?.length === 0 ? <p className="admin__empty">{t.adminEmpty}</p> : null}
         {visible.length > 0 ? (
@@ -56,6 +63,7 @@ export function CentersPage() {
                   <th>{t.adminAddress}</th>
                   <th>{t.adminHours}</th>
                   <th>{t.adminStatus}</th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
@@ -77,6 +85,11 @@ export function CentersPage() {
                           {row.status === 'active' ? t.adminActive : t.adminSuspended}
                         </span>
                       </td>
+                      <td>
+                        <button type="button" className="admin__text-btn" onClick={() => setEditing(row)}>
+                          {t.adminUpdate}
+                        </button>
+                      </td>
                     </tr>
                   )
                 })}
@@ -85,7 +98,15 @@ export function CentersPage() {
           </div>
         ) : null}
       </section>
-      <CenterActions onSaved={() => setTick((value) => value + 1)} />
+      <CenterActions
+        creating={creating}
+        editing={editing}
+        onClose={() => {
+          setCreating(false)
+          setEditing(null)
+        }}
+        onSaved={() => setTick((value) => value + 1)}
+      />
     </AdminFrame>
   )
 }

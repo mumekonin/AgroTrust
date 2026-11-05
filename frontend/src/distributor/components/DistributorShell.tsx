@@ -9,7 +9,6 @@ import '@/admin/components/AdminShell.css'
 const LINKS = [
   { to: '/distributor', end: true, label: 'distRequisitions', icon: 'agriculture' },
   { to: '/distributor/shipments', end: false, label: 'distShipments', icon: 'local_shipping' },
-  { to: '/distributor/payments', end: false, label: 'distPayments', icon: 'verified_user' },
 ] as const
 
 export function DistributorShell() {

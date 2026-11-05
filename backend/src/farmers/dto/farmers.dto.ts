@@ -79,6 +79,37 @@ export class ImportFarmerDto {
   idNumber?: string;
 }
 
+export class CreateFarmerDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  registryId!: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(120)
+  fullName!: string;
+
+  @IsString()
+  @MaxLength(20)
+  phone!: string;
+
+  @IsMongoId()
+  localCenterId!: string;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  landHoldingHa!: number;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(40, { each: true })
+  crops?: string[];
+}
+
 export class ImportFarmersDto {
   @IsBoolean()
   dryRun!: boolean;

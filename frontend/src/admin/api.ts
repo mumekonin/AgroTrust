@@ -60,6 +60,9 @@ export interface DistributorRow {
   type: 'government' | 'private'
   status: 'active' | 'suspended'
   regionCount: number
+  phone: string
+  bankAccountRef: string
+  licenceNo: string
 }
 
 export interface FraudRow {
@@ -156,6 +159,9 @@ export function loadDistributors(): Promise<List<DistributorRow>> {
       type: row.type,
       status: row.status,
       regionCount: row.serviceRegionIds?.length ?? 0,
+      phone: row.contact?.phone ?? '',
+      bankAccountRef: row.bankAccountRef ?? '',
+      licenceNo: row.licenceNo,
     })),
     nextCursor: page.nextCursor,
   }))

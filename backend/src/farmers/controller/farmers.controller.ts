@@ -12,12 +12,25 @@ import {
 } from '../../common/guards/auth.decorator.js';
 import { setAuthCookies } from '../../auth/auth.cookies.js';
 import { toAccessSessionResponse } from '../../auth/response/auth.response.js';
-import { ActivateFarmerDto, ImportFarmersDto, ListFarmersQuery } from '../dto/farmers.dto.js';
+import { ActivateFarmerDto, CreateFarmerDto, ImportFarmersDto, ListFarmersQuery } from '../dto/farmers.dto.js';
 import { FarmersService } from '../service/farmers.service.js';
 
 @Controller('local-admin/farmers')
 export class LocalFarmersController {
   constructor(private readonly farmers: FarmersService) {}
+
+  @Roles(Role.LOCAL_ADMIN)
+  @Post()
+  create(
+    @CurrentPrincipal() principal: Principal,
+    @Body() dto: CreateFarmerDto,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    if (!idempotencyKey?.trim()) {
+      throw new AppException(ErrorCode.VALIDATION_FAILED, 'Idempotency-Key is required');
+    }
+    return this.farmers.createByLocalAdmin(principal, dto);
+  }
 
   @Roles(Role.LOCAL_ADMIN, Role.REGIONAL_ADMIN, Role.NATIONAL_ADMIN)
   @Get()

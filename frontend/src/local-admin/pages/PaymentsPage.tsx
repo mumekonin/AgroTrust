@@ -16,7 +16,7 @@ export function PaymentsPage() {
 
   useEffect(() => {
     let cancelled = false
-    loadQueue('ACCEPTED')
+    loadQueue('APPROVED')
       .then((items) => {
         if (!cancelled) setRows(items)
       })

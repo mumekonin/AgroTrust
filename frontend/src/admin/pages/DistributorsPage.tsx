@@ -11,6 +11,7 @@ export function DistributorsPage() {
   const [rows, setRows] = useState<DistributorRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
+  const [editing, setEditing] = useState<DistributorRow | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -54,6 +55,7 @@ export function DistributorsPage() {
                   <th>{t.adminType}</th>
                   <th>{t.adminRegionsServed}</th>
                   <th>{t.adminStatus}</th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
@@ -69,6 +71,11 @@ export function DistributorsPage() {
                         {row.status === 'active' ? t.adminActive : t.adminSuspended}
                       </span>
                     </td>
+                    <td>
+                      <button type="button" className="admin__text-btn" onClick={() => setEditing(row)}>
+                        {t.adminUpdate}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -76,7 +83,11 @@ export function DistributorsPage() {
           </div>
         ) : null}
       </section>
-      <DistributorActions onSaved={() => setTick((value) => value + 1)} />
+      <DistributorActions
+        editing={editing}
+        onCloseEdit={() => setEditing(null)}
+        onSaved={() => setTick((value) => value + 1)}
+      />
     </AdminFrame>
   )
 }

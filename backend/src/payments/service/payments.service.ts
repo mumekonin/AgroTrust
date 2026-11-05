@@ -61,34 +61,41 @@ export class PaymentsService {
       }
       return toPaymentResponse(byRequest);
     }
-    if (request.status !== RequestStatus.ACCEPTED) {
+    const quoted = request.status === RequestStatus.APPROVED;
+    if (request.status !== RequestStatus.ACCEPTED && !quoted) {
       throw new AppException(ErrorCode.CONFLICT, 'This request is not awaiting payment', 409);
     }
-    if (!request.requisitionId) {
-      throw new AppException(ErrorCode.CONFLICT, 'This request is not on a requisition', 409);
+    if (!quoted) {
+      if (!request.requisitionId) {
+        throw new AppException(ErrorCode.CONFLICT, 'This request is not on a requisition', 409);
+      }
+      const due = request.paymentDueAt;
+      if (!due || due.getTime() <= Date.now()) {
+        throw new AppException(ErrorCode.CONFLICT, 'The payment deadline has passed', 409);
+      }
     }
-    const due = request.paymentDueAt;
-    if (!due || due.getTime() <= Date.now()) {
-      throw new AppException(ErrorCode.CONFLICT, 'The payment deadline has passed', 409);
-    }
-    const amountSantim = payableSantim(
-      request.items.map((item) => ({
-        acceptedQtyKg: item.acceptedQtyKg ?? 0,
-        unitPriceSantimPerKg: item.unitPriceSantimPerKg,
-        subsidySantimPerKg: item.subsidySantimPerKg,
-      })),
-    );
+    const amountSantim = quoted
+      ? request.payableSantim
+      : payableSantim(
+          request.items.map((item) => ({
+            acceptedQtyKg: item.acceptedQtyKg ?? 0,
+            unitPriceSantimPerKg: item.unitPriceSantimPerKg,
+            subsidySantimPerKg: item.subsidySantimPerKg,
+          })),
+        );
     const requisitionId = request.requisitionId;
     try {
       const saved = await this.transaction(async (session) => {
         const now = new Date();
         const paid = await this.requests.markPaid(request.id, amountSantim, now, principal.userId, session);
         if (!paid) throw new AppException(ErrorCode.CONFLICT, 'This request is not awaiting payment', 409);
-        await this.requisitions.recordPaid(
-          requisitionId,
-          paid.items.map((item) => ({ inputId: item.inputId, qtyKg: item.acceptedQtyKg ?? 0 })),
-          session,
-        );
+        if (requisitionId) {
+          await this.requisitions.recordPaid(
+            requisitionId,
+            paid.items.map((item) => ({ inputId: item.inputId, qtyKg: item.acceptedQtyKg ?? item.qtyKg })),
+            session,
+          );
+        }
         const [doc] = await this.payments.create(
           [
             {

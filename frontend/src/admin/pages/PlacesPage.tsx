@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useLang } from '@/shared/i18n/LangContext'
+import { Dialog } from '@/shared/ui/Dialog'
 import { loadGeo } from '../api'
 import { StepUpForm } from '../components/StepUpForm'
 import { localized, matches, problem } from '../text'
@@ -21,8 +22,8 @@ export function PlacesPage() {
   const [rows, setRows] = useState<Place[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
-  const [saved, setSaved] = useState<Place[]>([])
-  const [draftParent, setDraftParent] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState<Place | null>(null)
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
@@ -48,12 +49,10 @@ export function PlacesPage() {
     setNote(null)
     try {
       const created = await work()
-      if (isPlace(created)) {
-        setSaved((items) => [created, ...items.filter((item) => item.id !== created.id)])
-        setDraftParent(created.id)
-        setParentId(created.parentId ?? '')
-      }
+      if (isPlace(created)) setParentId(created.parentId ?? '')
       setNote(t.adminSaved)
+      setCreating(false)
+      setEditing(null)
       setTick((value) => value + 1)
     } catch (err) {
       setError(problem(err, t.errorGeneric))
@@ -64,28 +63,11 @@ export function PlacesPage() {
     <AdminFrame eyebrow={t.adminEyebrow} title={t.adminPlaces} hint={t.adminPlacesHint} query={query} onQuery={setQuery}>
       {error ? <p className="admin__error">{error}</p> : null}
       {note ? <p className="admin__note">{note}</p> : null}
-      {saved.length > 0 ? (
-        <section className="admin__card">
-          <h2>{t.adminCopyId}</h2>
-          <ul className="admin__list">
-            {saved.map((row) => (
-              <li key={row.id}>
-                <div>
-                  <strong>{localized(row.name, locale)}</strong>
-                  <small>
-                    {row.type} · {row.code}
-                  </small>
-                  <strong>{row.id}</strong>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-      <label className="admin__season-wrap">
-        {t.adminParent}
-        <input className="admin__season" value={parentId} onChange={(event) => setParentId(event.target.value.trim())} />
-      </label>
+      <div className="admin__toolbar">
+        <button type="button" className="admin__submit" onClick={() => setCreating(true)}>
+          {t.adminAdd}
+        </button>
+      </div>
       <section className="admin__card">
         {rows?.length === 0 ? <p className="admin__empty">{t.adminEmpty}</p> : null}
         <ul className="admin__list">
@@ -94,15 +76,18 @@ export function PlacesPage() {
               <div>
                 <strong>{localized(row.name, locale)}</strong>
                 <small>
-                  {row.type} · {row.code} · {row.id}
+                  {row.type} · {row.code}
                 </small>
               </div>
+              <button type="button" className="admin__text-btn" onClick={() => setEditing(row)}>
+                {t.adminUpdate}
+              </button>
             </li>
           ))}
         </ul>
       </section>
-      <div className="admin__split">
-        <section className="admin__card">
+      {creating ? (
+        <Dialog title={t.adminCreatePlace} closeLabel={t.adminClose} onClose={() => setCreating(false)}>
           <StepUpForm />
           <form
             className="admin__form"
@@ -110,41 +95,50 @@ export function PlacesPage() {
               event.preventDefault()
               const form = new FormData(event.currentTarget)
               const parent = String(form.get('parentId') ?? '').trim()
+              const name = String(form.get('en') ?? '').trim()
               void save(() =>
                 adminWrite<Place>('/admin/geo', 'POST', {
                   type: String(form.get('type')),
                   code: String(form.get('code') ?? '').trim(),
-                  name: names(form),
+                  name: { en: name, am: name, om: name },
                   parentId: parent || undefined,
                 }),
               )
             }}
           >
-            <h2>{t.adminCreatePlace}</h2>
-            <PlaceFields parent={draftParent} onParent={setDraftParent} />
+            <PlaceFields />
             <button className="admin__submit" type="submit">{t.adminSave}</button>
           </form>
-        </section>
-        <section className="admin__card">
+        </Dialog>
+      ) : null}
+      {editing ? (
+        <Dialog title={t.adminUpdatePlace} closeLabel={t.adminClose} onClose={() => setEditing(null)}>
           <form
             className="admin__form"
             onSubmit={(event: FormEvent<HTMLFormElement>) => {
               event.preventDefault()
               const form = new FormData(event.currentTarget)
-              const id = String(form.get('id') ?? '').trim()
-              void save(() => adminWrite(`/admin/geo/${id}`, 'PATCH', { code: String(form.get('code') ?? '').trim(), name: names(form) }))
+              const name = String(form.get('en') ?? '').trim()
+              void save(() =>
+                adminWrite(`/admin/geo/${editing.id}`, 'PATCH', {
+                  code: String(form.get('code') ?? '').trim(),
+                  name: { en: name, am: name, om: name },
+                }),
+              )
             }}
           >
-            <h2>{t.adminUpdatePlace}</h2>
             <label>
-              {t.adminRecord}
-              <input name="id" required />
+              {t.adminCode}
+              <input name="code" required defaultValue={editing.code} />
             </label>
-            <PlaceFields />
+            <label>
+              {t.adminNameEn}
+              <input name="en" required defaultValue={editing.name.en} />
+            </label>
             <button className="admin__submit" type="submit">{t.adminSave}</button>
           </form>
-        </section>
-      </div>
+        </Dialog>
+      ) : null}
     </AdminFrame>
   )
 }
@@ -155,15 +149,7 @@ function isPlace(value: unknown): value is Place {
   return typeof row.id === 'string' && typeof row.type === 'string' && typeof row.code === 'string'
 }
 
-function names(form: FormData) {
-  return {
-    en: String(form.get('en') ?? '').trim(),
-    am: String(form.get('am') ?? '').trim(),
-    om: String(form.get('om') ?? '').trim(),
-  }
-}
-
-function PlaceFields({ parent, onParent }: { parent?: string; onParent?: (value: string) => void }) {
+function PlaceFields() {
   const { t } = useLang()
   return (
     <>
@@ -185,20 +171,8 @@ function PlaceFields({ parent, onParent }: { parent?: string; onParent?: (value:
         <input name="en" required />
       </label>
       <label>
-        {t.adminNameAm}
-        <input name="am" required />
-      </label>
-      <label>
-        {t.adminNameOm}
-        <input name="om" required />
-      </label>
-      <label>
         {t.adminParent}
-        <input
-          name="parentId"
-          value={onParent ? parent ?? '' : undefined}
-          onChange={onParent ? (event) => onParent(event.target.value.trim()) : undefined}
-        />
+        <input name="parentId" />
       </label>
     </>
   )

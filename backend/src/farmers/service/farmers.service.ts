@@ -15,9 +15,10 @@ import { CredentialService } from '../../auth/service/credential.service.js';
 import { DeviceService } from '../../auth/service/device.service.js';
 import { CredentialType } from '../../auth/schema/user-credential.schema.js';
 import { GeoService } from '../../geo/service/geo.service.js';
+import { LocalCentersService } from '../../local-centers/service/local-centers.service.js';
 import { UserStatus } from '../../users/schema/user.schema.js';
 import { UsersService } from '../../users/service/users.service.js';
-import type { ActivateFarmerDto, ImportFarmerDto, ImportFarmersDto } from '../dto/farmers.dto.js';
+import type { ActivateFarmerDto, CreateFarmerDto, ImportFarmerDto, ImportFarmersDto } from '../dto/farmers.dto.js';
 import {
   toFarmerResponse,
   type FarmerListResponse,
@@ -52,6 +53,7 @@ export class FarmersService {
     private readonly auth: AuthService,
     private readonly devices: DeviceService,
     private readonly geo: GeoService,
+    private readonly centers: LocalCentersService,
     config: ConfigService<Env, true>,
   ) {
     this.pepper = config.get('AUTH_PEPPER', { infer: true });
@@ -136,6 +138,30 @@ export class FarmersService {
       attempts: 0,
     });
     return { activationCode: code, expiresAt };
+  }
+
+  async createByLocalAdmin(principal: Principal, input: CreateFarmerDto): Promise<FarmerResponse> {
+    if (!principal.roles.includes(Role.LOCAL_ADMIN)) {
+      throw new AppException(ErrorCode.FORBIDDEN, 'You cannot do that', 403);
+    }
+    if (!principal.scope.localCenterIds.includes(input.localCenterId)) {
+      throw new AppException(ErrorCode.FORBIDDEN, 'You cannot do that', 403);
+    }
+    const center = await this.centers.getById(principal, input.localCenterId);
+    if (center.status !== 'active') {
+      throw new AppException(ErrorCode.CONFLICT, 'This center is not open', 409);
+    }
+    const prepared = await this.prepareRow(
+      principal,
+      { ...input, geo: center.geo },
+      new Set(),
+      new Map(),
+    );
+    if (!prepared.doc) {
+      throw new AppException(ErrorCode.VALIDATION_FAILED, prepared.error ?? 'The farmer could not be registered');
+    }
+    const created = await this.farmers.create(prepared.doc);
+    return toFarmerResponse(created);
   }
 
   async importFarmers(principal: Principal, input: ImportFarmersDto): Promise<ImportReport> {
@@ -244,7 +270,15 @@ export class FarmersService {
     seenRegistry: Set<string>,
     seenPhones: Map<string, { sharedPhone: boolean }[]>,
   ): Promise<{ error?: string; doc?: Record<string, unknown> }> {
-    if (
+    const atThisCenter =
+      principal.roles.includes(Role.LOCAL_ADMIN) &&
+      !principal.roles.includes(Role.NATIONAL_ADMIN) &&
+      !principal.roles.includes(Role.REGIONAL_ADMIN);
+    if (atThisCenter) {
+      if (!principal.scope.localCenterIds.includes(row.localCenterId)) {
+        return { error: 'Outside your center' };
+      }
+    } else if (
       !principal.roles.includes(Role.NATIONAL_ADMIN) &&
       !principal.scope.regionIds.includes(row.geo.regionId)
     ) {

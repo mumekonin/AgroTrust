@@ -101,10 +101,9 @@ export class RequestRequisitionService {
       for (const doc of docs) {
         const updated = await this.requests
           .updateOne(
-            { _id: doc._id, status: RequestStatus.APPROVED },
+            { _id: doc._id, status: RequestStatus.PAID, requisitionId: { $exists: false } },
             {
               $set: {
-                status: RequestStatus.REQUISITIONED,
                 requisitionId: objectId(requisitionId, 'Invalid requisition'),
                 waitlisted: false,
               },
@@ -259,7 +258,8 @@ export class RequestRequisitionService {
     return {
       localCenterId: objectId(centerId, 'Invalid center'),
       seasonId: objectId(seasonId, 'Invalid season'),
-      status: RequestStatus.APPROVED,
+      status: RequestStatus.PAID,
+      requisitionId: { $exists: false },
       'items.inputId': { $in: ids },
       items: { $not: { $elemMatch: { inputId: { $nin: ids } } } },
     };
@@ -268,8 +268,11 @@ export class RequestRequisitionService {
   private async nextAcceptPage(requisitionId: string, policy: PriorityPolicy): Promise<InputRequestDocument[]> {
     const filter = {
       requisitionId: objectId(requisitionId, 'Invalid requisition'),
-      status: RequestStatus.REQUISITIONED,
       waitlisted: { $ne: true },
+      $or: [
+        { status: RequestStatus.REQUISITIONED },
+        { status: RequestStatus.PAID, 'items.acceptedQtyKg': { $exists: false } },
+      ],
     };
     if (policy !== PriorityPolicy.SMALLEST_LAND_FIRST) {
       return this.requests.find(filter).sort({ reviewedAt: 1, _id: 1 }).limit(REQUISITION_CHUNK).exec();
@@ -342,11 +345,12 @@ export class RequestRequisitionService {
       lineTotalSantim: item.lineTotalSantim,
     }));
     const now = new Date();
+    const alreadyPaid = doc.status === RequestStatus.PAID;
     const updated = await this.requests
       .updateOne(
-        { _id: doc._id, status: RequestStatus.REQUISITIONED, waitlisted: { $ne: true } },
+        { _id: doc._id, status: doc.status, waitlisted: { $ne: true } },
         {
-          $set: { status: RequestStatus.ACCEPTED, items, paymentDueAt, waitlisted: false },
+          $set: { status: alreadyPaid ? RequestStatus.PAID : RequestStatus.ACCEPTED, items, paymentDueAt, waitlisted: false },
           $push: {
             statusHistory: {
               status: RequestStatus.ACCEPTED,
@@ -375,12 +379,14 @@ export class RequestRequisitionService {
     }
     const amount = payableSantim(items);
     const quantityKg = items.reduce((sum, item) => sum + item.acceptedQtyKg, 0);
-    await this.notify(doc, farmers, session, [
+    const notices: { event: NotificationEvent; params: Record<string, string> }[] = [
       {
         event: NotificationEvent.REQUEST_ACCEPTED,
         params: { requestNo: doc.requestNo, quantityKg: String(quantityKg) },
       },
-      {
+    ];
+    if (!alreadyPaid) {
+      notices.push({
         event: NotificationEvent.PAYMENT_REQUIRED,
         params: {
           requestNo: doc.requestNo,
@@ -388,8 +394,9 @@ export class RequestRequisitionService {
           deadline: paymentDueAt.toISOString().slice(0, 10),
           reference: paymentReference(doc.requestNo),
         },
-      },
-    ]);
+      });
+    }
+    await this.notify(doc, farmers, session, notices);
     await this.audit.append({
       actor: this.auditActor(actor),
       action: 'REQUEST_ACCEPTED',

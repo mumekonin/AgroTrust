@@ -2,6 +2,7 @@ import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module.js';
 import { GeoModule } from '../geo/geo.module.js';
+import { LocalCentersModule } from '../local-centers/local-centers.module.js';
 import { UsersModule } from '../users/users.module.js';
 import {
   AdminFarmersController,
@@ -17,6 +18,7 @@ import { FarmersService } from './service/farmers.service.js';
     forwardRef(() => AuthModule),
     UsersModule,
     GeoModule,
+    LocalCentersModule,
     MongooseModule.forFeature([
       { name: Farmer.name, schema: FarmerSchema },
       { name: FarmerActivation.name, schema: FarmerActivationSchema },
